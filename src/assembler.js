@@ -8,6 +8,7 @@ import { initStyleToolbar } from './style-toolbar.js';
 let templateBlocks = []; // { componentId, instanceId, customHtml? }
 let sidebarSortable = null;
 let dropZoneSortable = null;
+let componentsCache = [];
 
 function generateInstanceId() {
   return 'inst-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
@@ -19,9 +20,10 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function renderSidebar(filter = '') {
+async function renderSidebar(filter = '') {
   const container = document.getElementById('available-components');
-  const components = getComponents();
+  const components = await getComponents();
+  componentsCache = components;
   const filtered = filter
     ? components.filter(c =>
         c.name.toLowerCase().includes(filter.toLowerCase()) ||
@@ -107,8 +109,8 @@ function renderDropZone() {
   } else {
     if (placeholder) placeholder.style.display = 'none';
 
-    templateBlocks.forEach(block => {
-      const comp = getComponents().find(c => c.id === block.componentId);
+  templateBlocks.forEach(block => {
+      const comp = componentsCache.find(c => c.id === block.componentId);
       const blockHtml = block.customHtml || (comp ? comp.html : '<p style="color:red;">Composant introuvable</p>');
       const isCustomized = !!block.customHtml;
       const el = document.createElement('div');
@@ -217,20 +219,18 @@ function initDropZoneSortable() {
 
 function updateTemplatePreview() {
   const preview = document.getElementById('template-preview');
-  const components = getComponents();
   const htmlParts = templateBlocks.map(block => {
     if (block.customHtml) return block.customHtml;
-    const comp = components.find(c => c.id === block.componentId);
+    const comp = componentsCache.find(c => c.id === block.componentId);
     return comp ? comp.html : '<!-- Composant introuvable -->';
   });
   preview.innerHTML = htmlParts.join('\n');
 }
 
 function getTemplateHTML() {
-  const components = getComponents();
   return templateBlocks.map(block => {
     if (block.customHtml) return block.customHtml;
-    const comp = components.find(c => c.id === block.componentId);
+    const comp = componentsCache.find(c => c.id === block.componentId);
     return comp ? comp.html : '';
   }).filter(Boolean).join('\n\n');
 }
@@ -255,7 +255,7 @@ function copyHTML() {
   });
 }
 
-function handleSaveTemplate() {
+async function handleSaveTemplate() {
   const name = document.getElementById('template-name').value || 'Sans nom';
   if (templateBlocks.length === 0) {
     window.showToast('⚠️ Le template est vide');
@@ -266,14 +266,14 @@ function handleSaveTemplate() {
     name,
     blocks: templateBlocks.map(b => ({ componentId: b.componentId, customHtml: b.customHtml || null }))
   };
-  saveTemplate(template);
+  await saveTemplate(template);
   window.showToast('💾 Template sauvegardé');
 }
 
-function handleLoadTemplate() {
+async function handleLoadTemplate() {
   const modal = document.getElementById('load-modal');
   const list = document.getElementById('saved-templates-list');
-  const templates = getTemplates();
+  const templates = await getTemplates();
 
   list.innerHTML = '';
   if (templates.length === 0) {
@@ -289,10 +289,10 @@ function handleLoadTemplate() {
         </div>
         <button class="tpl-delete" title="Supprimer">🗑️</button>
       `;
-      el.addEventListener('click', (e) => {
+      el.addEventListener('click', async (e) => {
         if (e.target.classList.contains('tpl-delete')) {
           e.stopPropagation();
-          deleteTemplate(tpl.id);
+          await deleteTemplate(tpl.id);
           handleLoadTemplate(); // refresh
           return;
         }
@@ -325,8 +325,8 @@ function clearTemplate() {
   updateTemplatePreview();
 }
 
-export function initAssembler() {
-  renderSidebar();
+export async function initAssembler() {
+  await renderSidebar();
   renderDropZone();
 
   document.getElementById('search-components').addEventListener('input', (e) => {

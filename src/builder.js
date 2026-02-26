@@ -6,7 +6,8 @@ import {
   getComponents, saveComponent, deleteComponent,
   exportComponentsJSON, exportSingleComponentJSON, importComponentsJSON,
   getTrash, restoreFromTrash, removeFromTrash, emptyTrash,
-  toggleFavorite, sortComponents
+  toggleFavorite, sortComponents, getComponent,
+  exportWithDialog, importWithDialog
 } from './storage.js';
 import { categoryBadge } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
@@ -19,10 +20,10 @@ function generateId() {
   return 'comp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 }
 
-function renderComponentList(filter = '') {
+async function renderComponentList(filter = '') {
   const list = document.getElementById('component-list');
   const sortBy = document.getElementById('builder-sort')?.value || 'name';
-  const components = getComponents();
+  const components = await getComponents();
   const filtered = filter
     ? components.filter(c =>
         c.name.toLowerCase().includes(filter.toLowerCase()) ||
@@ -50,9 +51,9 @@ function renderComponentList(filter = '') {
         </div>
       </div>
     `;
-    el.querySelector('.fav-btn').addEventListener('click', (e) => {
+    el.querySelector('.fav-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
-      toggleFavorite(comp.id);
+      await toggleFavorite(comp.id);
       renderComponentList(filter);
     });
     el.addEventListener('click', () => selectComponent(comp.id));
@@ -60,9 +61,9 @@ function renderComponentList(filter = '') {
   });
 }
 
-function selectComponent(id) {
+async function selectComponent(id) {
   currentComponentId = id;
-  const comp = getComponents().find(c => c.id === id);
+  const comp = await getComponent(id);
   if (!comp) return;
 
   document.getElementById('editor-placeholder').classList.add('hidden');
@@ -117,7 +118,7 @@ function createEditor() {
   });
 }
 
-function newComponent() {
+async function newComponent() {
   const id = generateId();
   const comp = {
     id,
@@ -125,13 +126,13 @@ function newComponent() {
     category: 'content',
     html: '<div style="padding: 16px; background: #f9f9f9; border-radius: 8px;">\n  <p>Votre contenu ici</p>\n</div>'
   };
-  saveComponent(comp);
-  renderComponentList();
+  await saveComponent(comp);
+  await renderComponentList();
   selectComponent(id);
   document.getElementById('component-name').select();
 }
 
-function saveCurrentComponent() {
+async function saveCurrentComponent() {
   if (!currentComponentId || !editorView) return;
   const comp = {
     id: currentComponentId,
@@ -139,18 +140,18 @@ function saveCurrentComponent() {
     category: document.getElementById('component-category').value,
     html: editorView.state.doc.toString()
   };
-  saveComponent(comp);
-  renderComponentList();
+  await saveComponent(comp);
+  await renderComponentList();
   window.showToast('✅ Composant sauvegardé');
 }
 
-function deleteCurrentComponent() {
+async function deleteCurrentComponent() {
   if (!currentComponentId) return;
-  deleteComponent(currentComponentId);
+  await deleteComponent(currentComponentId);
   currentComponentId = null;
   document.getElementById('editor-placeholder').classList.remove('hidden');
   document.getElementById('editor-area').classList.add('hidden');
-  renderComponentList();
+  await renderComponentList();
   window.showToast('🗑️ Composant mis à la corbeille');
 }
 
@@ -164,19 +165,20 @@ function downloadJSON(json, filename) {
   URL.revokeObjectURL(url);
 }
 
-function handleExportAll() {
-  downloadJSON(exportComponentsJSON(), 'zendesk-components.json');
+async function handleExportAll() {
+  const json = await exportComponentsJSON();
+  downloadJSON(json, 'zendesk-components.json');
   window.showToast('📤 Tous les composants exportés');
 }
 
-function handleExportSelection() {
+async function handleExportSelection() {
   if (!currentComponentId) {
     window.showToast('⚠️ Sélectionnez un composant d\'abord');
     return;
   }
-  const json = exportSingleComponentJSON(currentComponentId);
+  const json = await exportSingleComponentJSON(currentComponentId);
   if (!json) return;
-  const comp = getComponents().find(c => c.id === currentComponentId);
+  const comp = await getComponent(currentComponentId);
   const name = (comp?.name || 'composant').replace(/\s+/g, '-').toLowerCase();
   downloadJSON(json, `${name}.json`);
   window.showToast('📤 Composant exporté');
@@ -186,10 +188,10 @@ function handleImport(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
-      const count = importComponentsJSON(reader.result);
-      renderComponentList();
+      const count = await importComponentsJSON(reader.result);
+      await renderComponentList();
       window.showToast(`📥 ${count} composant(s) importé(s)`);
     } catch (err) {
       window.showToast('❌ Erreur d\'import: ' + err.message);
@@ -211,9 +213,9 @@ function openTrash() {
   modal.classList.remove('hidden');
 }
 
-function renderTrashList() {
+async function renderTrashList() {
   const list = document.getElementById('trash-list');
-  const trash = getTrash();
+  const trash = await getTrash();
   list.innerHTML = '';
 
   if (trash.length === 0) {
@@ -237,24 +239,24 @@ function renderTrashList() {
         <button class="btn btn-danger btn-sm permadelete-btn">✕</button>
       </div>
     `;
-    el.querySelector('.restore-btn').addEventListener('click', () => {
-      restoreFromTrash(comp.id);
-      renderTrashList();
-      renderComponentList();
+    el.querySelector('.restore-btn').addEventListener('click', async () => {
+      await restoreFromTrash(comp.id);
+      await renderTrashList();
+      await renderComponentList();
       window.showToast('↩️ Composant restauré');
     });
-    el.querySelector('.permadelete-btn').addEventListener('click', () => {
+    el.querySelector('.permadelete-btn').addEventListener('click', async () => {
       if (!confirm('Supprimer définitivement ?')) return;
-      removeFromTrash(comp.id);
-      renderTrashList();
+      await removeFromTrash(comp.id);
+      await renderTrashList();
     });
     list.appendChild(el);
   });
 }
 
-export function initBuilder() {
+export async function initBuilder() {
   createEditor();
-  renderComponentList();
+  await renderComponentList();
 
   // Make preview editable — sync changes back to CodeMirror
   const preview = document.getElementById('component-preview');
@@ -299,10 +301,10 @@ export function initBuilder() {
   document.getElementById('trash-modal-close').addEventListener('click', () => {
     document.getElementById('trash-modal').classList.add('hidden');
   });
-  document.getElementById('empty-trash-btn').addEventListener('click', () => {
+  document.getElementById('empty-trash-btn').addEventListener('click', async () => {
     if (!confirm('Vider la corbeille définitivement ?')) return;
-    emptyTrash();
-    renderTrashList();
+    await emptyTrash();
+    await renderTrashList();
     window.showToast('🗑️ Corbeille vidée');
   });
 

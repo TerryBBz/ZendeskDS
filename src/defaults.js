@@ -86,15 +86,17 @@ const defaultComponents = [
   }
 ];
 
-export function loadDefaultComponents() {
+export async function loadDefaultComponents() {
   if (localStorage.getItem(DEFAULTS_LOADED_KEY)) return;
 
-  const existing = getComponents();
+  const existing = await getComponents();
   if (existing.length > 0) {
     localStorage.setItem(DEFAULTS_LOADED_KEY, '1');
     return;
   }
 
-  defaultComponents.forEach(comp => saveComponent(comp));
+  for (const comp of defaultComponents) {
+    await saveComponent(comp);
+  }
   localStorage.setItem(DEFAULTS_LOADED_KEY, '1');
 }

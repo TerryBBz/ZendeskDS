@@ -27,8 +27,8 @@ window.showToast = (message, duration = 2000) => {
 };
 
 // Load defaults on first visit
-loadDefaultComponents();
+await loadDefaultComponents();
 
 // Init modules
-initBuilder();
-initAssembler();
+await initBuilder();
+await initAssembler();
