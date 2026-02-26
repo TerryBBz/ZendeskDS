@@ -49,12 +49,25 @@ async function renderComponentList(filter = '') {
           <div class="name">${escapeHtml(comp.name)}</div>
           <div class="category">${categoryBadge(comp.category)}</div>
         </div>
+        <button class="delete-item-btn" title="Supprimer">🗑️</button>
       </div>
     `;
     el.querySelector('.fav-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
       await toggleFavorite(comp.id);
       renderComponentList(filter);
+    });
+    el.querySelector('.delete-item-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Supprimer "${comp.name}" ?`)) return;
+      await deleteComponent(comp.id);
+      if (currentComponentId === comp.id) {
+        currentComponentId = null;
+        document.getElementById('editor-placeholder').classList.remove('hidden');
+        document.getElementById('editor-area').classList.add('hidden');
+      }
+      await renderComponentList(filter);
+      window.showToast('🗑️ Composant mis à la corbeille');
     });
     el.addEventListener('click', () => selectComponent(comp.id));
     list.appendChild(el);

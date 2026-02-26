@@ -166,6 +166,18 @@ input[type="text"]:focus, select:focus {
 }
 .fav-btn:hover { color: #fdcb6e; }
 .fav-btn.active { color: #fdcb6e; }
+.delete-item-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 2px;
+  flex-shrink: 0;
+}
+.component-item:hover .delete-item-btn { opacity: 0.6; }
+.delete-item-btn:hover { opacity: 1 !important; }
 
 /* Editor panel */
 .editor-panel {
