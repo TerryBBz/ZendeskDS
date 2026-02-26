@@ -179,6 +179,21 @@ input[type="text"]:focus, select:focus {
 .component-item:hover .delete-item-btn { opacity: 0.6; }
 .delete-item-btn:hover { opacity: 1 !important; }
 
+.bulk-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 0;
+  flex-wrap: wrap;
+}
+.bulk-actions.hidden { display: none; }
+.select-cb {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #0984e3;
+}
+
 /* Editor panel */
 .editor-panel {
   flex: 1;

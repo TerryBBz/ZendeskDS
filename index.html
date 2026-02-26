@@ -20,10 +20,15 @@
             <div class="component-actions">
               <button id="new-component-btn" class="btn btn-primary">+ Nouveau</button>
               <button id="import-btn" class="btn btn-secondary">📥 Importer</button>
-              <button id="export-btn" class="btn btn-secondary">📤 Tout</button>
-              <button id="export-selection-btn" class="btn btn-secondary">📤 Sélection</button>
+              <button id="export-btn" class="btn btn-secondary">📤 Tout exporter</button>
               <button id="trash-btn" class="btn btn-secondary">🗑️ Corbeille</button>
+              <button id="select-mode-btn" class="btn btn-secondary">☑️ Sélectionner</button>
               <input type="file" id="import-file" accept=".json" hidden />
+            </div>
+            <div id="bulk-actions" class="bulk-actions hidden">
+              <button id="bulk-export-btn" class="btn btn-secondary btn-sm">📤 Exporter la sélection</button>
+              <button id="bulk-delete-btn" class="btn btn-danger btn-sm">🗑️ Supprimer la sélection</button>
+              <button id="bulk-cancel-btn" class="btn btn-secondary btn-sm">✕ Annuler</button>
             </div>
             <div class="builder-filter-row">
               <input type="text" id="builder-search" placeholder="🔍 Rechercher..." />

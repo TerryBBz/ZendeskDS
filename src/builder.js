@@ -4,17 +4,18 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorState } from '@codemirror/state';
 import {
   getComponents, saveComponent, deleteComponent,
-  exportComponentsJSON, exportSingleComponentJSON, importComponentsJSON,
+  exportComponentsJSON, importComponentsJSON,
   getTrash, restoreFromTrash, removeFromTrash, emptyTrash,
   toggleFavorite, sortComponents, getComponent,
-  exportWithDialog, importWithDialog
 } from './storage.js';
 import { categoryBadge } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
 
 let editorView = null;
 let currentComponentId = null;
-let previewUpdating = false; // prevent feedback loop between editor and preview
+let previewUpdating = false;
+let selectMode = false;
+let selectedIds = new Set();
 
 function generateId() {
   return 'comp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
@@ -44,32 +45,46 @@ async function renderComponentList(filter = '') {
     el.className = 'component-item' + (comp.id === currentComponentId ? ' selected' : '');
     el.innerHTML = `
       <div class="component-item-row">
+        ${selectMode ? `<input type="checkbox" class="select-cb" ${selectedIds.has(comp.id) ? 'checked' : ''} />` : ''}
         <button class="fav-btn ${isFav ? 'active' : ''}" title="Favori">${isFav ? '★' : '☆'}</button>
         <div class="component-item-info">
           <div class="name">${escapeHtml(comp.name)}</div>
           <div class="category">${categoryBadge(comp.category)}</div>
         </div>
-        <button class="delete-item-btn" title="Supprimer">🗑️</button>
+        ${!selectMode ? '<button class="delete-item-btn" title="Supprimer">🗑️</button>' : ''}
       </div>
     `;
-    el.querySelector('.fav-btn').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await toggleFavorite(comp.id);
-      renderComponentList(filter);
-    });
-    el.querySelector('.delete-item-btn').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!confirm(`Supprimer "${comp.name}" ?`)) return;
-      await deleteComponent(comp.id);
-      if (currentComponentId === comp.id) {
-        currentComponentId = null;
-        document.getElementById('editor-placeholder').classList.remove('hidden');
-        document.getElementById('editor-area').classList.add('hidden');
-      }
-      await renderComponentList(filter);
-      window.showToast('🗑️ Composant mis à la corbeille');
-    });
-    el.addEventListener('click', () => selectComponent(comp.id));
+    if (selectMode) {
+      const cb = el.querySelector('.select-cb');
+      cb.addEventListener('click', (e) => e.stopPropagation());
+      cb.addEventListener('change', (e) => {
+        if (e.target.checked) selectedIds.add(comp.id);
+        else selectedIds.delete(comp.id);
+      });
+      el.addEventListener('click', () => {
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      });
+    } else {
+      el.querySelector('.fav-btn').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await toggleFavorite(comp.id);
+        renderComponentList(filter);
+      });
+      el.querySelector('.delete-item-btn').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Supprimer "${comp.name}" ?`)) return;
+        await deleteComponent(comp.id);
+        if (currentComponentId === comp.id) {
+          currentComponentId = null;
+          document.getElementById('editor-placeholder').classList.remove('hidden');
+          document.getElementById('editor-area').classList.add('hidden');
+        }
+        await renderComponentList(filter);
+        window.showToast('🗑️ Composant mis à la corbeille');
+      });
+      el.addEventListener('click', () => selectComponent(comp.id));
+    }
     list.appendChild(el);
   });
 }
@@ -184,19 +199,6 @@ async function handleExportAll() {
   window.showToast('📤 Tous les composants exportés');
 }
 
-async function handleExportSelection() {
-  if (!currentComponentId) {
-    window.showToast('⚠️ Sélectionnez un composant d\'abord');
-    return;
-  }
-  const json = await exportSingleComponentJSON(currentComponentId);
-  if (!json) return;
-  const comp = await getComponent(currentComponentId);
-  const name = (comp?.name || 'composant').replace(/\s+/g, '-').toLowerCase();
-  downloadJSON(json, `${name}.json`);
-  window.showToast('📤 Composant exporté');
-}
-
 function handleImport(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -300,12 +302,53 @@ export async function initBuilder() {
   });
   document.getElementById('delete-component-btn').addEventListener('click', deleteCurrentComponent);
   document.getElementById('export-btn').addEventListener('click', handleExportAll);
-  document.getElementById('export-selection-btn').addEventListener('click', handleExportSelection);
   document.getElementById('import-btn').addEventListener('click', () => {
     document.getElementById('import-file').click();
   });
   document.getElementById('import-file').addEventListener('change', handleImport);
   document.getElementById('trash-btn').addEventListener('click', openTrash);
+
+  // Select mode
+  document.getElementById('select-mode-btn').addEventListener('click', () => {
+    selectMode = true;
+    selectedIds.clear();
+    document.getElementById('bulk-actions').classList.remove('hidden');
+    document.getElementById('select-mode-btn').classList.add('hidden');
+    renderComponentList(document.getElementById('builder-search').value);
+  });
+  document.getElementById('bulk-cancel-btn').addEventListener('click', () => {
+    selectMode = false;
+    selectedIds.clear();
+    document.getElementById('bulk-actions').classList.add('hidden');
+    document.getElementById('select-mode-btn').classList.remove('hidden');
+    renderComponentList(document.getElementById('builder-search').value);
+  });
+  document.getElementById('bulk-delete-btn').addEventListener('click', async () => {
+    if (selectedIds.size === 0) { window.showToast('⚠️ Aucun composant sélectionné'); return; }
+    if (!confirm(`Supprimer ${selectedIds.size} composant(s) ?`)) return;
+    for (const id of selectedIds) {
+      await deleteComponent(id);
+      if (currentComponentId === id) {
+        currentComponentId = null;
+        document.getElementById('editor-placeholder').classList.remove('hidden');
+        document.getElementById('editor-area').classList.add('hidden');
+      }
+    }
+    selectedIds.clear();
+    selectMode = false;
+    document.getElementById('bulk-actions').classList.add('hidden');
+    document.getElementById('select-mode-btn').classList.remove('hidden');
+    await renderComponentList();
+    window.showToast('🗑️ Composants supprimés');
+  });
+  document.getElementById('bulk-export-btn').addEventListener('click', async () => {
+    if (selectedIds.size === 0) { window.showToast('⚠️ Aucun composant sélectionné'); return; }
+    const components = await getComponents();
+    const selected = components.filter(c => selectedIds.has(c.id));
+    const json = JSON.stringify(selected, null, 2);
+    downloadJSON(json, `zendesk-${selectedIds.size}-composants.json`);
+    window.showToast(`📤 ${selectedIds.size} composant(s) exporté(s)`);
+  });
 
   // Sort dropdown
   document.getElementById('builder-sort').addEventListener('change', () => {
