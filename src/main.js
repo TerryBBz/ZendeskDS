@@ -2,6 +2,7 @@ import './style.css';
 import { initBuilder } from './builder.js';
 import { initAssembler } from './assembler.js';
 import { loadDefaultComponents } from './defaults.js';
+import { startFileWatcher, onStorageChange } from './storage.js';
 
 // Tab navigation
 document.querySelectorAll('.tab').forEach(tab => {
@@ -32,3 +33,11 @@ await loadDefaultComponents();
 // Init modules
 await initBuilder();
 await initAssembler();
+
+// File watcher — détecte les modifications manuelles dans Documents/ZendeskDS/
+onStorageChange(() => {
+  window.showToast('🔄 Données mises à jour depuis le dossier');
+  initBuilder();
+  initAssembler();
+});
+startFileWatcher();

@@ -250,3 +250,59 @@ export async function importWithDialog() {
   const content = await tauriFs.readTextFile(path);
   return importComponentsJSON(content);
 }
+
+// --- File watcher (détecte les modifications manuelles dans le dossier) ---
+
+const FILE_HASHES = {};
+const WATCH_FILES = ['components.json', 'templates.json', 'trash.json'];
+let watcherCallbacks = [];
+let watcherInterval = null;
+
+async function getFileHash(filename) {
+  try {
+    await loadTauriModules();
+    const dir = await getDataDir();
+    const path = `${dir}/${filename}`;
+    const fileExists = await tauriFs.exists(path);
+    if (!fileExists) return null;
+    const content = await tauriFs.readTextFile(path);
+    // Simple hash: longueur + premiers/derniers caractères
+    return `${content.length}:${content.slice(0, 50)}:${content.slice(-50)}`;
+  } catch {
+    return null;
+  }
+}
+
+async function checkForChanges() {
+  let changed = false;
+  for (const file of WATCH_FILES) {
+    const hash = await getFileHash(file);
+    if (FILE_HASHES[file] !== undefined && FILE_HASHES[file] !== hash) {
+      changed = true;
+    }
+    FILE_HASHES[file] = hash;
+  }
+  if (changed) {
+    watcherCallbacks.forEach(cb => cb());
+  }
+}
+
+export function onStorageChange(callback) {
+  watcherCallbacks.push(callback);
+}
+
+export function startFileWatcher(intervalMs = 3000) {
+  if (!isTauri() || watcherInterval) return;
+  // Initialiser les hashes sans déclencher de callback
+  WATCH_FILES.forEach(async (file) => {
+    FILE_HASHES[file] = await getFileHash(file);
+  });
+  watcherInterval = setInterval(checkForChanges, intervalMs);
+}
+
+export function stopFileWatcher() {
+  if (watcherInterval) {
+    clearInterval(watcherInterval);
+    watcherInterval = null;
+  }
+}
