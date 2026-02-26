@@ -16,6 +16,9 @@ let currentComponentId = null;
 let previewUpdating = false;
 let selectMode = false;
 let selectedIds = new Set();
+let hasUnsavedChanges = false;
+let autosaveTimer = null;
+const AUTOSAVE_DELAY = 1500; // 1.5s après la dernière modif
 
 function generateId() {
   return 'comp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
@@ -128,12 +131,22 @@ function syncEditorFromPreview() {
   previewUpdating = false;
 }
 
+function scheduleAutosave() {
+  if (!currentComponentId) return;
+  hasUnsavedChanges = true;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    saveCurrentComponent(true);
+  }, AUTOSAVE_DELAY);
+}
+
 function createEditor() {
   const container = document.getElementById('codemirror-container');
 
   const updateListener = EditorView.updateListener.of(update => {
     if (update.docChanged && !previewUpdating) {
       updatePreview(update.state.doc.toString());
+      scheduleAutosave();
     }
   });
 
@@ -160,7 +173,7 @@ async function newComponent() {
   document.getElementById('component-name').select();
 }
 
-async function saveCurrentComponent() {
+async function saveCurrentComponent(auto = false) {
   if (!currentComponentId || !editorView) return;
   const comp = {
     id: currentComponentId,
@@ -169,8 +182,9 @@ async function saveCurrentComponent() {
     html: editorView.state.doc.toString()
   };
   await saveComponent(comp);
+  hasUnsavedChanges = false;
   await renderComponentList();
-  window.showToast('✅ Composant sauvegardé');
+  if (!auto) window.showToast('✅ Composant sauvegardé');
 }
 
 async function deleteCurrentComponent() {
@@ -369,6 +383,17 @@ export async function initBuilder() {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
       if (currentComponentId) saveCurrentComponent();
+    }
+  });
+
+  // Autosave on name/category change
+  document.getElementById('component-name').addEventListener('input', scheduleAutosave);
+  document.getElementById('component-category').addEventListener('change', scheduleAutosave);
+
+  // Warn before leaving with unsaved changes
+  window.addEventListener('beforeunload', (e) => {
+    if (hasUnsavedChanges) {
+      e.preventDefault();
     }
   });
 
