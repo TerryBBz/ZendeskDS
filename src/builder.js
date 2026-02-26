@@ -8,7 +8,7 @@ import {
   getTrash, restoreFromTrash, removeFromTrash, emptyTrash,
   toggleFavorite, sortComponents, getComponent,
 } from './storage.js';
-import { categoryBadge } from './categories.js';
+import { categoryBadge, getFolders, addFolder, renameFolder, deleteFolder, defaultFolders } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
 
 let editorView = null;
@@ -24,6 +24,9 @@ function generateId() {
   return 'comp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 }
 
+// Track collapsed folders
+const collapsedFolders = new Set();
+
 async function renderComponentList(filter = '') {
   const list = document.getElementById('component-list');
   const sortBy = document.getElementById('builder-sort')?.value || 'name';
@@ -37,59 +40,160 @@ async function renderComponentList(filter = '') {
   const sorted = sortComponents(filtered, sortBy);
   list.innerHTML = '';
 
-  if (sorted.length === 0) {
-    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${filter ? 'Aucun résultat' : 'Aucun composant'}</p>`;
+  if (sorted.length === 0 && !filter) {
+    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">Aucun composant</p>`;
     return;
   }
 
-  sorted.forEach(comp => {
-    const isFav = comp.favorite;
-    const el = document.createElement('div');
-    el.className = 'component-item' + (comp.id === currentComponentId ? ' selected' : '');
-    el.innerHTML = `
-      <div class="component-item-row">
-        ${selectMode ? `<input type="checkbox" class="select-cb" ${selectedIds.has(comp.id) ? 'checked' : ''} />` : ''}
-        <button class="fav-btn ${isFav ? 'active' : ''}" title="Favori">${isFav ? '★' : '☆'}</button>
-        <div class="component-item-info">
-          <div class="name">${escapeHtml(comp.name)}</div>
-          <div class="category">${categoryBadge(comp.category)}</div>
-        </div>
-        ${!selectMode ? '<button class="delete-item-btn" title="Supprimer">🗑️</button>' : ''}
+  const folders = getFolders();
+
+  // Group components by folder
+  const groups = {};
+  for (const comp of sorted) {
+    const cat = comp.category || 'other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(comp);
+  }
+
+  // Show search results flat (no folders)
+  if (filter) {
+    sorted.forEach(comp => list.appendChild(createComponentEl(comp, filter)));
+    if (sorted.length === 0) {
+      list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">Aucun résultat</p>`;
+    }
+    return;
+  }
+
+  // Render each folder
+  const folderKeys = Object.keys(folders);
+  // Also include any categories that exist in components but not in folders
+  for (const cat of Object.keys(groups)) {
+    if (!folderKeys.includes(cat)) folderKeys.push(cat);
+  }
+
+  for (const key of folderKeys) {
+    const folder = folders[key] || { label: key, icon: '📁', color: '#b2bec3' };
+    const comps = groups[key] || [];
+    const isCollapsed = collapsedFolders.has(key);
+
+    const section = document.createElement('div');
+    section.className = 'folder-section';
+
+    const header = document.createElement('div');
+    header.className = 'folder-header';
+    header.innerHTML = `
+      <span class="folder-toggle">${isCollapsed ? '▶' : '▼'}</span>
+      <span class="folder-icon" style="color:${folder.color}">${folder.icon}</span>
+      <span class="folder-label">${escapeHtml(folder.label)}</span>
+      <span class="folder-count">${comps.length}</span>
+      <div class="folder-actions">
+        <button class="folder-rename-btn" title="Renommer">✏️</button>
+        ${key !== 'other' ? '<button class="folder-delete-btn" title="Supprimer le dossier">✕</button>' : ''}
       </div>
     `;
-    if (selectMode) {
-      const cb = el.querySelector('.select-cb');
-      cb.addEventListener('click', (e) => e.stopPropagation());
-      cb.addEventListener('change', (e) => {
-        if (e.target.checked) selectedIds.add(comp.id);
-        else selectedIds.delete(comp.id);
-      });
-      el.addEventListener('click', () => {
-        cb.checked = !cb.checked;
-        cb.dispatchEvent(new Event('change'));
-      });
-    } else {
-      el.querySelector('.fav-btn').addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await toggleFavorite(comp.id);
+
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('.folder-actions')) return;
+      if (isCollapsed) collapsedFolders.delete(key);
+      else collapsedFolders.add(key);
+      renderComponentList(filter);
+    });
+
+    header.querySelector('.folder-rename-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const newName = prompt('Nouveau nom du dossier :', folder.label);
+      if (newName && newName.trim()) {
+        renameFolder(key, newName.trim());
         renderComponentList(filter);
-      });
-      el.querySelector('.delete-item-btn').addEventListener('click', async (e) => {
+        refreshCategoryDropdown();
+      }
+    });
+
+    const delBtn = header.querySelector('.folder-delete-btn');
+    if (delBtn) {
+      delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (!confirm(`Supprimer "${comp.name}" ?`)) return;
-        await deleteComponent(comp.id);
-        if (currentComponentId === comp.id) {
-          currentComponentId = null;
-          document.getElementById('editor-placeholder').classList.remove('hidden');
-          document.getElementById('editor-area').classList.add('hidden');
-        }
-        await renderComponentList(filter);
-        window.showToast('🗑️ Composant mis à la corbeille');
+        if (!confirm(`Supprimer le dossier "${folder.label}" ?\nLes composants seront déplacés dans "Autre".`)) return;
+        // Move components to 'other'
+        comps.forEach(async (comp) => {
+          await saveComponent({ ...comp, category: 'other' });
+        });
+        deleteFolder(key);
+        renderComponentList(filter);
+        refreshCategoryDropdown();
       });
-      el.addEventListener('click', () => selectComponent(comp.id));
     }
-    list.appendChild(el);
-  });
+
+    section.appendChild(header);
+
+    if (!isCollapsed) {
+      comps.forEach(comp => section.appendChild(createComponentEl(comp, filter)));
+    }
+
+    list.appendChild(section);
+  }
+}
+
+function createComponentEl(comp, filter = '') {
+  const isFav = comp.favorite;
+  const el = document.createElement('div');
+  el.className = 'component-item' + (comp.id === currentComponentId ? ' selected' : '');
+  el.innerHTML = `
+    <div class="component-item-row">
+      ${selectMode ? `<input type="checkbox" class="select-cb" ${selectedIds.has(comp.id) ? 'checked' : ''} />` : ''}
+      <button class="fav-btn ${isFav ? 'active' : ''}" title="Favori">${isFav ? '★' : '☆'}</button>
+      <div class="component-item-info">
+        <div class="name">${escapeHtml(comp.name)}</div>
+      </div>
+      ${!selectMode ? '<button class="delete-item-btn" title="Supprimer">🗑️</button>' : ''}
+    </div>
+  `;
+  if (selectMode) {
+    const cb = el.querySelector('.select-cb');
+    cb.addEventListener('click', (e) => e.stopPropagation());
+    cb.addEventListener('change', (e) => {
+      if (e.target.checked) selectedIds.add(comp.id);
+      else selectedIds.delete(comp.id);
+    });
+    el.addEventListener('click', () => {
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event('change'));
+    });
+  } else {
+    el.querySelector('.fav-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await toggleFavorite(comp.id);
+      renderComponentList(filter);
+    });
+    el.querySelector('.delete-item-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Supprimer "${comp.name}" ?`)) return;
+      await deleteComponent(comp.id);
+      if (currentComponentId === comp.id) {
+        currentComponentId = null;
+        document.getElementById('editor-placeholder').classList.remove('hidden');
+        document.getElementById('editor-area').classList.add('hidden');
+      }
+      await renderComponentList(filter);
+      window.showToast('🗑️ Composant mis à la corbeille');
+    });
+    el.addEventListener('click', () => selectComponent(comp.id));
+  }
+  return el;
+}
+
+function refreshCategoryDropdown() {
+  const select = document.getElementById('component-category');
+  const current = select.value;
+  const folders = getFolders();
+  select.innerHTML = '';
+  for (const [key, folder] of Object.entries(folders)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${folder.icon} ${folder.label}`;
+    select.appendChild(opt);
+  }
+  select.value = current || 'other';
 }
 
 async function selectComponent(id) {
@@ -285,6 +389,7 @@ async function renderTrashList() {
 
 export async function initBuilder() {
   createEditor();
+  refreshCategoryDropdown();
   await renderComponentList();
 
   // Make preview editable — sync changes back to CodeMirror
@@ -321,6 +426,18 @@ export async function initBuilder() {
   });
   document.getElementById('import-file').addEventListener('change', handleImport);
   document.getElementById('trash-btn').addEventListener('click', openTrash);
+
+  // New folder
+  document.getElementById('new-folder-btn').addEventListener('click', () => {
+    const name = prompt('Nom du nouveau dossier :');
+    if (!name || !name.trim()) return;
+    const key = name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (!key) { window.showToast('❌ Nom invalide'); return; }
+    if (!addFolder(key, name.trim())) { window.showToast('⚠️ Ce dossier existe déjà'); return; }
+    refreshCategoryDropdown();
+    renderComponentList();
+    window.showToast(`📁 Dossier "${name.trim()}" créé`);
+  });
 
   // Select mode
   document.getElementById('select-mode-btn').addEventListener('click', () => {
