@@ -39,10 +39,9 @@ function showFolderBanner() {
     if (ok) {
       banner.remove();
       window.showToast('📁 Dossier connecté — les données seront sauvegardées en fichiers');
-      // Reload data
+      // Reload data without re-binding events
       await loadDefaultComponents();
-      await initBuilder();
-      await initAssembler();
+      window.dispatchEvent(new Event('storage-changed'));
     }
   });
   document.body.prepend(banner);

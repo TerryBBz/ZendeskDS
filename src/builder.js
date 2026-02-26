@@ -320,4 +320,7 @@ export async function initBuilder() {
   initStyleToolbar('#component-preview', () => {
     syncEditorFromPreview();
   });
+
+  // Refresh data when storage source changes (e.g. folder connected)
+  window.addEventListener('storage-changed', () => renderComponentList());
 }

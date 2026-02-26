@@ -376,4 +376,7 @@ export async function initAssembler() {
     });
     updateTemplatePreview();
   });
+
+  // Refresh sidebar when storage source changes
+  window.addEventListener('storage-changed', () => renderSidebar());
 }
