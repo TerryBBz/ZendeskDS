@@ -58,6 +58,16 @@ function create() {
       </div>
     </div>
     <div class="st-section">
+      <label>😀 Emoji</label>
+      <div class="st-row">
+        <button class="st-emoji-toggle" title="Insérer un emoji">😀 Insérer</button>
+      </div>
+      <div class="st-emoji-picker hidden">
+        <input type="text" class="st-emoji-search" placeholder="🔍 Rechercher..." />
+        <div class="st-emoji-grid"></div>
+      </div>
+    </div>
+    <div class="st-section">
       <label>📐 Espacement</label>
       <div class="st-row">
         <div class="st-field">
@@ -183,6 +193,57 @@ function create() {
         input._oldVal = undefined;
       }
     });
+  });
+
+  // Emoji picker
+  const EMOJIS = [
+    '😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😍','🥰','😘','😋','😎','🤩','🥳',
+    '😏','😒','😞','😔','😟','😕','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤯',
+    '👍','👎','👏','🙌','🤝','👋','✋','🖐','👆','👇','👉','👈','✌','🤞','🤟','💪',
+    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💖','💗','💘','💝',
+    '⭐','🌟','✨','⚡','🔥','💥','🎉','🎊','🏆','🥇','🎯','🚀','💡','📌','📎',
+    '✅','❌','⚠️','❓','❗','💬','💭','🔔','📢','📣',
+    'ℹ️','➡️','⬅️','⬆️','⬇️','↩️','🔄','🔗','📋','📝','📁','📂','🗑️','🔧','⚙️',
+    '👤','👥','👨‍💻','👩‍💻','🧑‍💼','📧','📞','🌐','🏠','🔒','🔓','🛡️'
+  ];
+
+  const emojiToggle = toolbar.querySelector('.st-emoji-toggle');
+  const emojiPicker = toolbar.querySelector('.st-emoji-picker');
+  const emojiGrid = toolbar.querySelector('.st-emoji-grid');
+  const emojiSearch = toolbar.querySelector('.st-emoji-search');
+
+  function renderEmojis(filter = '') {
+    const filtered = filter
+      ? EMOJIS.filter(e => e.includes(filter))
+      : EMOJIS;
+    emojiGrid.innerHTML = filtered.map(e => `<button class="st-emoji-btn">${e}</button>`).join('');
+    emojiGrid.querySelectorAll('.st-emoji-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!currentTarget) return;
+        // Insert emoji into the selected element
+        const sel = window.getSelection();
+        if (sel.rangeCount && currentTarget.contains(sel.anchorNode)) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(document.createTextNode(btn.textContent));
+          range.collapse(false);
+        } else {
+          currentTarget.textContent += btn.textContent;
+        }
+        notifyChange();
+      });
+    });
+  }
+
+  renderEmojis();
+
+  emojiToggle.addEventListener('click', () => {
+    emojiPicker.classList.toggle('hidden');
+    if (!emojiPicker.classList.contains('hidden')) emojiSearch.focus();
+  });
+
+  emojiSearch.addEventListener('input', (e) => {
+    renderEmojis(e.target.value);
   });
 
   // Close

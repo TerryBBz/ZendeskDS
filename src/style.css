@@ -748,6 +748,48 @@ input[type="text"]:focus, select:focus {
   background: var(--bg);
 }
 
+/* Emoji picker */
+.st-emoji-toggle {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+.st-emoji-toggle:hover { border-color: var(--primary); }
+.st-emoji-picker { padding-top: 6px; }
+.st-emoji-picker.hidden { display: none; }
+.st-emoji-search {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+}
+.st-emoji-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.st-emoji-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.st-emoji-btn:hover { background: var(--bg-secondary); }
+
 /* Selected element highlight */
 .st-selected {
   outline: 2px dashed var(--primary) !important;
