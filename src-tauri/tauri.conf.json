@@ -41,11 +41,7 @@
   },
   "plugins": {
     "fs": {
-      "scope": {
-        "allow": [
-          "$DOCUMENT/ZendeskDS/**"
-        ]
-      }
+      "requireLiteralLeadingDot": false
     }
   }
 }
