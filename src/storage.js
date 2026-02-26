@@ -1,80 +1,113 @@
 const STORAGE_KEY = 'ztb-components';
 const TEMPLATES_KEY = 'ztb-templates';
 const TRASH_KEY = 'ztb-trash';
-const DATA_VERSION = 1;
-const DATA_FOLDER = 'ZendeskDS';
 
-// --- Détection Tauri ---
-const isTauri = () => typeof window !== 'undefined' && window.__TAURI_INTERNALS__;
+// --- File System Access API ---
+// Quand un dossier est sélectionné, on lit/écrit directement dedans.
+// Sinon, fallback localStorage.
 
-let tauriFs = null;
-let tauriPath = null;
+let dirHandle = null; // FileSystemDirectoryHandle
 
-async function loadTauriModules() {
-  if (tauriFs) return;
-  tauriFs = await import('@tauri-apps/plugin-fs');
-  tauriPath = await import('@tauri-apps/api/path');
+export function hasFolderAccess() {
+  return dirHandle !== null;
 }
 
-async function getDataDir() {
-  await loadTauriModules();
-  const docDir = await tauriPath.documentDir();
-  return await tauriPath.join(docDir, DATA_FOLDER);
-}
-
-async function ensureDataDir() {
-  await loadTauriModules();
-  const dir = await getDataDir();
-  const exists = await tauriFs.exists(dir);
-  if (!exists) {
-    await tauriFs.mkdir(dir, { recursive: true });
+export async function requestFolder() {
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    // Sauvegarder le handle pour les sessions futures (IndexedDB)
+    await saveDirHandle(dirHandle);
+    return true;
+  } catch {
+    return false;
   }
-  return dir;
+}
+
+// Persister le handle dans IndexedDB pour ne pas redemander à chaque visite
+function openHandleDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('zds-handles', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveDirHandle(handle) {
+  const db = await openHandleDB();
+  const tx = db.transaction('handles', 'readwrite');
+  tx.objectStore('handles').put(handle, 'dataDir');
+  return new Promise((resolve) => { tx.oncomplete = resolve; });
+}
+
+async function loadDirHandle() {
+  try {
+    const db = await openHandleDB();
+    const tx = db.transaction('handles', 'readonly');
+    const req = tx.objectStore('handles').get('dataDir');
+    return new Promise((resolve) => {
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch { return null; }
+}
+
+// Tente de restaurer l'accès au dossier (au démarrage)
+export async function restoreFolderAccess() {
+  const handle = await loadDirHandle();
+  if (!handle) return false;
+  // Vérifier que la permission est toujours active
+  const perm = await handle.queryPermission({ mode: 'readwrite' });
+  if (perm === 'granted') {
+    dirHandle = handle;
+    return true;
+  }
+  // Demander la permission (nécessite un geste utilisateur)
+  const req = await handle.requestPermission({ mode: 'readwrite' });
+  if (req === 'granted') {
+    dirHandle = handle;
+    return true;
+  }
+  return false;
 }
 
 async function readJsonFile(filename, fallback = []) {
+  if (!dirHandle) return fallback;
   try {
-    await loadTauriModules();
-    const dir = await ensureDataDir();
-    const path = await tauriPath.join(dir, filename);
-    const fileExists = await tauriFs.exists(path);
-    if (!fileExists) return fallback;
-    const content = await tauriFs.readTextFile(path);
+    const fileHandle = await dirHandle.getFileHandle(filename);
+    const file = await fileHandle.getFile();
+    const content = await file.text();
     const data = JSON.parse(content);
-    if (data && data._version !== undefined) {
-      return data.items || fallback;
-    }
-    return data || fallback;
+    return Array.isArray(data) ? data : (data?.items || fallback);
   } catch (e) {
+    if (e.name === 'NotFoundError') return fallback;
     console.error('readJsonFile error:', e);
     return fallback;
   }
 }
 
 async function writeJsonFile(filename, items) {
+  if (!dirHandle) return;
   try {
-    await loadTauriModules();
-    const dir = await ensureDataDir();
-    const path = await tauriPath.join(dir, filename);
-    const data = { _version: DATA_VERSION, items };
-    await tauriFs.writeTextFile(path, JSON.stringify(data, null, 2));
+    const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(items, null, 2));
+    await writable.close();
   } catch (e) {
     console.error('writeJsonFile error:', e);
-    // Fallback localStorage
-    localStorage.setItem(`ztb-fallback-${filename}`, JSON.stringify(items));
   }
 }
 
-// --- API publique (async pour Tauri, sync fallback pour navigateur) ---
+// --- API publique ---
 
 export async function getComponents() {
-  if (isTauri()) return readJsonFile('components.json', []);
+  if (dirHandle) return readJsonFile('components.json', []);
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
   catch { return []; }
 }
 
 export async function saveComponents(components) {
-  if (isTauri()) return writeJsonFile('components.json', components);
+  if (dirHandle) return writeJsonFile('components.json', components);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(components));
 }
 
@@ -131,13 +164,13 @@ export async function deleteComponent(id) {
 }
 
 export async function getTrash() {
-  if (isTauri()) return readJsonFile('trash.json', []);
+  if (dirHandle) return readJsonFile('trash.json', []);
   try { return JSON.parse(localStorage.getItem(TRASH_KEY)) || []; }
   catch { return []; }
 }
 
 async function saveTrash(trash) {
-  if (isTauri()) return writeJsonFile('trash.json', trash);
+  if (dirHandle) return writeJsonFile('trash.json', trash);
   localStorage.setItem(TRASH_KEY, JSON.stringify(trash));
 }
 
@@ -161,13 +194,13 @@ export async function emptyTrash() {
 }
 
 export async function getTemplates() {
-  if (isTauri()) return readJsonFile('templates.json', []);
+  if (dirHandle) return readJsonFile('templates.json', []);
   try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY)) || []; }
   catch { return []; }
 }
 
 async function saveTemplates(templates) {
-  if (isTauri()) return writeJsonFile('templates.json', templates);
+  if (dirHandle) return writeJsonFile('templates.json', templates);
   localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
 }
 
@@ -222,94 +255,19 @@ export async function importComponentsJSON(json) {
 // --- Import/Export natif Tauri (dialogues fichier) ---
 
 export async function exportWithDialog() {
-  if (!isTauri()) {
-    const json = await exportComponentsJSON();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'zendesk-components.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    return true;
-  }
-  const { save } = await import('@tauri-apps/plugin-dialog');
-  const path = await save({
-    defaultPath: 'zendesk-components.json',
-    filters: [{ name: 'JSON', extensions: ['json'] }]
-  });
-  if (!path) return false;
-  await loadTauriModules();
   const json = await exportComponentsJSON();
-  await tauriFs.writeTextFile(path, json);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'zendesk-components.json';
+  a.click();
+  URL.revokeObjectURL(url);
   return true;
 }
 
 export async function importWithDialog() {
-  if (!isTauri()) return null;
-  const { open } = await import('@tauri-apps/plugin-dialog');
-  const path = await open({
-    filters: [{ name: 'JSON', extensions: ['json'] }],
-    multiple: false
-  });
-  if (!path) return null;
-  await loadTauriModules();
-  const content = await tauriFs.readTextFile(path);
-  return importComponentsJSON(content);
+  return null; // Handled via <input type="file"> in builder.js
 }
 
-// --- File watcher (détecte les modifications manuelles dans le dossier) ---
 
-const FILE_HASHES = {};
-const WATCH_FILES = ['components.json', 'templates.json', 'trash.json'];
-let watcherCallbacks = [];
-let watcherInterval = null;
-
-async function getFileHash(filename) {
-  try {
-    await loadTauriModules();
-    const dir = await getDataDir();
-    const path = await tauriPath.join(dir, filename);
-    const fileExists = await tauriFs.exists(path);
-    if (!fileExists) return null;
-    const content = await tauriFs.readTextFile(path);
-    // Simple hash: longueur + premiers/derniers caractères
-    return `${content.length}:${content.slice(0, 50)}:${content.slice(-50)}`;
-  } catch {
-    return null;
-  }
-}
-
-async function checkForChanges() {
-  let changed = false;
-  for (const file of WATCH_FILES) {
-    const hash = await getFileHash(file);
-    if (FILE_HASHES[file] !== undefined && FILE_HASHES[file] !== hash) {
-      changed = true;
-    }
-    FILE_HASHES[file] = hash;
-  }
-  if (changed) {
-    watcherCallbacks.forEach(cb => cb());
-  }
-}
-
-export function onStorageChange(callback) {
-  watcherCallbacks.push(callback);
-}
-
-export function startFileWatcher(intervalMs = 3000) {
-  if (!isTauri() || watcherInterval) return;
-  // Initialiser les hashes sans déclencher de callback
-  WATCH_FILES.forEach(async (file) => {
-    FILE_HASHES[file] = await getFileHash(file);
-  });
-  watcherInterval = setInterval(checkForChanges, intervalMs);
-}
-
-export function stopFileWatcher() {
-  if (watcherInterval) {
-    clearInterval(watcherInterval);
-    watcherInterval = null;
-  }
-}

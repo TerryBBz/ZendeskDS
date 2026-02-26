@@ -2,7 +2,7 @@ import './style.css';
 import { initBuilder } from './builder.js';
 import { initAssembler } from './assembler.js';
 import { loadDefaultComponents } from './defaults.js';
-import { startFileWatcher, onStorageChange } from './storage.js';
+import { restoreFolderAccess, requestFolder, hasFolderAccess } from './storage.js';
 
 // Tab navigation
 document.querySelectorAll('.tab').forEach(tab => {
@@ -27,6 +27,30 @@ window.showToast = (message, duration = 2000) => {
   setTimeout(() => toast.remove(), duration);
 };
 
+// Folder access banner
+function showFolderBanner() {
+  if (document.getElementById('folder-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'folder-banner';
+  banner.style.cssText = 'background:#0984e3;color:white;padding:10px 20px;text-align:center;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;';
+  banner.innerHTML = '📁 <span>Sélectionner un dossier pour sauvegarder vos données en fichiers locaux</span> <button style="background:white;color:#0984e3;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-weight:bold;">Choisir un dossier</button>';
+  banner.querySelector('button').addEventListener('click', async () => {
+    const ok = await requestFolder();
+    if (ok) {
+      banner.remove();
+      window.showToast('📁 Dossier connecté — les données seront sauvegardées en fichiers');
+      // Reload data
+      await loadDefaultComponents();
+      await initBuilder();
+      await initAssembler();
+    }
+  });
+  document.body.prepend(banner);
+}
+
+// Try to restore previous folder access
+const restored = await restoreFolderAccess();
+
 // Load defaults on first visit
 await loadDefaultComponents();
 
@@ -34,10 +58,7 @@ await loadDefaultComponents();
 await initBuilder();
 await initAssembler();
 
-// File watcher — détecte les modifications manuelles dans Documents/ZendeskDS/
-onStorageChange(() => {
-  window.showToast('🔄 Données mises à jour depuis le dossier');
-  initBuilder();
-  initAssembler();
-});
-startFileWatcher();
+// Show banner if no folder access
+if (!restored) {
+  showFolderBanner();
+}
