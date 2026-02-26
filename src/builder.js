@@ -128,7 +128,7 @@ async function newComponent() {
   };
   await saveComponent(comp);
   await renderComponentList();
-  selectComponent(id);
+  await selectComponent(id);
   document.getElementById('component-name').select();
 }
 

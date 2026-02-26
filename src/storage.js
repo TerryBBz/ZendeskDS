@@ -19,7 +19,7 @@ async function loadTauriModules() {
 async function getDataDir() {
   await loadTauriModules();
   const docDir = await tauriPath.documentDir();
-  return `${docDir}${DATA_FOLDER}`;
+  return await tauriPath.join(docDir, DATA_FOLDER);
 }
 
 async function ensureDataDir() {
@@ -36,7 +36,7 @@ async function readJsonFile(filename, fallback = []) {
   try {
     await loadTauriModules();
     const dir = await ensureDataDir();
-    const path = `${dir}/${filename}`;
+    const path = await tauriPath.join(dir, filename);
     const fileExists = await tauriFs.exists(path);
     if (!fileExists) return fallback;
     const content = await tauriFs.readTextFile(path);
@@ -45,17 +45,24 @@ async function readJsonFile(filename, fallback = []) {
       return data.items || fallback;
     }
     return data || fallback;
-  } catch {
+  } catch (e) {
+    console.error('readJsonFile error:', e);
     return fallback;
   }
 }
 
 async function writeJsonFile(filename, items) {
-  await loadTauriModules();
-  const dir = await ensureDataDir();
-  const path = `${dir}/${filename}`;
-  const data = { _version: DATA_VERSION, items };
-  await tauriFs.writeTextFile(path, JSON.stringify(data, null, 2));
+  try {
+    await loadTauriModules();
+    const dir = await ensureDataDir();
+    const path = await tauriPath.join(dir, filename);
+    const data = { _version: DATA_VERSION, items };
+    await tauriFs.writeTextFile(path, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error('writeJsonFile error:', e);
+    // Fallback localStorage
+    localStorage.setItem(`ztb-fallback-${filename}`, JSON.stringify(items));
+  }
 }
 
 // --- API publique (async pour Tauri, sync fallback pour navigateur) ---
@@ -262,7 +269,7 @@ async function getFileHash(filename) {
   try {
     await loadTauriModules();
     const dir = await getDataDir();
-    const path = `${dir}/${filename}`;
+    const path = await tauriPath.join(dir, filename);
     const fileExists = await tauriFs.exists(path);
     if (!fileExists) return null;
     const content = await tauriFs.readTextFile(path);
