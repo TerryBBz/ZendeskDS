@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zendesk Template Builder</title>
+  </head>
+  <body>
+    <div id="app">
+      <nav class="tabs">
+        <button class="tab active" data-tab="builder">🧩 Component Builder</button>
+        <button class="tab" data-tab="assembler">📄 Template Assembler</button>
+      </nav>
+
+      <div id="builder" class="tab-content active">
+        <div class="builder-layout">
+          <aside class="component-list-panel">
+            <h2>Mes Composants</h2>
+            <div class="component-actions">
+              <button id="new-component-btn" class="btn btn-primary">+ Nouveau</button>
+              <button id="import-btn" class="btn btn-secondary">📥 Importer</button>
+              <button id="export-btn" class="btn btn-secondary">📤 Tout</button>
+              <button id="export-selection-btn" class="btn btn-secondary">📤 Sélection</button>
+              <button id="trash-btn" class="btn btn-secondary">🗑️ Corbeille</button>
+              <input type="file" id="import-file" accept=".json" hidden />
+            </div>
+            <div class="builder-filter-row">
+              <input type="text" id="builder-search" placeholder="🔍 Rechercher..." />
+              <select id="builder-sort">
+                <option value="name">A→Z</option>
+                <option value="date">Récents</option>
+                <option value="category">Catégorie</option>
+              </select>
+            </div>
+            <div id="component-list"></div>
+          </aside>
+
+          <main class="editor-panel">
+            <div id="editor-placeholder" class="placeholder">
+              <p>← Sélectionnez un composant ou créez-en un nouveau</p>
+            </div>
+            <div id="editor-area" class="hidden">
+              <div class="editor-header">
+                <input type="text" id="component-name" placeholder="Nom du composant" />
+                <select id="component-category">
+                  <option value="header">En-tête</option>
+                  <option value="content">Contenu</option>
+                  <option value="callout">Callout / Alerte</option>
+                  <option value="list">Liste</option>
+                  <option value="footer">Pied de page</option>
+                  <option value="other">Autre</option>
+                </select>
+                <button id="save-component-btn" class="btn btn-primary">💾 Sauvegarder</button>
+                <button id="copy-component-html-btn" class="btn btn-secondary">📋 Copier HTML</button>
+                <button id="delete-component-btn" class="btn btn-danger">🗑️ Supprimer</button>
+              </div>
+              <div class="editor-split">
+                <div class="preview-side">
+                  <h3>Aperçu</h3>
+                  <div id="component-preview" class="preview-frame"></div>
+                </div>
+                <div class="code-side">
+                  <h3>Code HTML</h3>
+                  <div id="codemirror-container"></div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+
+      <div id="assembler" class="tab-content">
+        <div class="assembler-layout">
+          <aside class="components-sidebar">
+            <h2>Composants</h2>
+            <input type="text" id="search-components" placeholder="🔍 Rechercher..." />
+            <div id="available-components"></div>
+          </aside>
+
+          <main class="assembler-main">
+            <div class="assembler-toolbar">
+              <input type="text" id="template-name" placeholder="Nom du template" value="Mon Template" />
+              <button id="save-template-btn" class="btn btn-secondary">💾 Sauvegarder</button>
+              <button id="load-template-btn" class="btn btn-secondary">📂 Charger</button>
+              <button id="clear-template-btn" class="btn btn-secondary">🗑️ Vider</button>
+              <button id="copy-html-btn" class="btn btn-primary">📋 Copier le HTML</button>
+            </div>
+
+            <div class="assembler-split">
+              <div class="drop-zone-container">
+                <h3>Zone d'assemblage <small>(glissez les composants ici)</small></h3>
+                <div id="drop-zone" class="drop-zone">
+                  <p class="drop-placeholder">Glissez des composants depuis la sidebar</p>
+                </div>
+              </div>
+              <div class="template-preview-container">
+                <h3>Aperçu du template</h3>
+                <div id="template-preview" class="preview-frame"></div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+
+      <!-- Modal pour charger un template -->
+      <div id="load-modal" class="modal hidden">
+        <div class="modal-content">
+          <h2>Charger un template</h2>
+          <div id="saved-templates-list"></div>
+          <button class="btn btn-secondary modal-close">Fermer</button>
+        </div>
+      </div>
+
+      <!-- Modal corbeille -->
+      <div id="trash-modal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header-row">
+            <h2>🗑️ Corbeille</h2>
+            <button id="empty-trash-btn" class="btn btn-danger btn-sm">Vider la corbeille</button>
+          </div>
+          <div id="trash-list"></div>
+          <button id="trash-modal-close" class="btn btn-secondary modal-close">Fermer</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
