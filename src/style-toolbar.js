@@ -47,6 +47,15 @@ function create() {
           <button data-prop="textDecoration" data-on="underline" data-off="none" class="st-toggle" title="Souligné"><u>U</u></button>
         </div>
       </div>
+      <div class="st-row">
+        <div class="st-field st-toggles">
+          <span class="st-label">Alignement</span>
+          <button data-align="left" class="st-align" title="Gauche">⬅</button>
+          <button data-align="center" class="st-align" title="Centré">⬛</button>
+          <button data-align="right" class="st-align" title="Droite">➡</button>
+          <button data-align="justify" class="st-align" title="Justifié">☰</button>
+        </div>
+      </div>
     </div>
     <div class="st-section">
       <label>📐 Espacement</label>
@@ -139,6 +148,19 @@ function create() {
     });
   });
 
+  // Alignment buttons
+  toolbar.querySelectorAll('.st-align').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!currentTarget) return;
+      const oldVal = currentTarget.style.textAlign || '';
+      currentTarget.style.textAlign = btn.dataset.align;
+      toolbar.querySelectorAll('.st-align').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      recordUndo(currentTarget, 'textAlign', oldVal);
+      notifyChange();
+    });
+  });
+
   // Range sliders (padding, margin, borderWidth, borderRadius)
   toolbar.querySelectorAll('.st-range').forEach(input => {
     input.addEventListener('mousedown', () => {
@@ -222,6 +244,12 @@ function readCurrentStyles(el) {
   toolbar.querySelectorAll('.st-toggle').forEach(btn => {
     const val = computed[btn.dataset.prop];
     btn.classList.toggle('active', val === btn.dataset.on);
+  });
+
+  // Alignment
+  const align = computed.textAlign || 'left';
+  toolbar.querySelectorAll('.st-align').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.align === align);
   });
 
   // Ranges

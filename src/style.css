@@ -701,6 +701,25 @@ input[type="text"]:focus, select:focus {
   border-color: var(--primary);
   color: white;
 }
+.st-align {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.st-align:hover {
+  border-color: var(--primary);
+  color: var(--text);
+}
+.st-align.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
 
 .st-range {
   width: 80px;
