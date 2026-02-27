@@ -57,7 +57,7 @@ export async function renameFolder(key, newLabel) {
 
 export async function deleteFolder(key) {
   const folders = getFolders();
-  if (!folders[key] || key === 'other') return false;
+  if (!folders[key]) return false;
   delete folders[key];
   await saveFolders(folders);
   return true;
