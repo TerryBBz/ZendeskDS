@@ -138,18 +138,18 @@
 
       <!-- Modal corbeille -->
       <div id="trash-modal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header-row">
+            <h2>🗑️ Corbeille</h2>
+            <button id="empty-trash-btn" class="btn btn-danger btn-sm">Vider la corbeille</button>
+          </div>
+          <div id="trash-list"></div>
+          <button id="trash-modal-close" class="btn btn-secondary modal-close">Fermer</button>
+        </div>
+      </div>
 
       <!-- Modal preview plein écran -->
       <div id="preview-modal" class="modal hidden">
-
-      <!-- Modal historique versions -->
-      <div id="history-modal" class="modal hidden">
-        <div class="modal-content">
-          <h2>🕐 Historique des versions</h2>
-          <div id="version-list"></div>
-          <button id="history-modal-close" class="btn btn-secondary modal-close">Fermer</button>
-        </div>
-      </div>
         <div class="modal-content preview-modal-content">
           <div class="modal-header-row">
             <h2>👁 Aperçu du template</h2>
@@ -158,13 +158,13 @@
           <iframe id="preview-iframe" class="preview-iframe"></iframe>
         </div>
       </div>
+
+      <!-- Modal historique versions -->
+      <div id="history-modal" class="modal hidden">
         <div class="modal-content">
-          <div class="modal-header-row">
-            <h2>🗑️ Corbeille</h2>
-            <button id="empty-trash-btn" class="btn btn-danger btn-sm">Vider la corbeille</button>
-          </div>
-          <div id="trash-list"></div>
-          <button id="trash-modal-close" class="btn btn-secondary modal-close">Fermer</button>
+          <h2>🕐 Historique des versions</h2>
+          <div id="version-list"></div>
+          <button id="history-modal-close" class="btn btn-secondary modal-close">Fermer</button>
         </div>
       </div>
     </div>

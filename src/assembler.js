@@ -453,11 +453,22 @@ async function exportAsImage() {
       useCORS: true,
       logging: false
     });
-    const link = document.createElement('a');
-    link.download = `template-${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    window.showToast('📸 Image exportée !');
+    // Copy to clipboard
+    canvas.toBlob(async (blob) => {
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        window.showToast('📸 Image copiée — Ctrl+V pour coller !');
+      } catch (_) {
+        // Fallback: download file
+        const link = document.createElement('a');
+        link.download = `template-${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        window.showToast('📸 Image téléchargée (copie non supportée)');
+      }
+    }, 'image/png');
   } catch (e) {
     console.error('Export image error:', e);
     window.showToast('❌ Erreur export image', 3000, 'error');
