@@ -1,4 +1,5 @@
-const FOLDERS_KEY = 'ztb-folders';
+import { isAuthenticated } from './auth.js';
+import { api } from './api.js';
 
 export const defaultFolders = {
   header:  { label: 'En-tête',       icon: '📌', color: '#0984e3' },
@@ -9,43 +10,56 @@ export const defaultFolders = {
   other:   { label: 'Autre',         icon: '🔧', color: '#b2bec3' },
 };
 
-// Couleurs assignées aux nouveaux dossiers
 const folderColors = ['#e17055','#00b894','#0984e3','#6c5ce7','#fdcb6e','#e84393','#00cec9','#636e72'];
 let colorIdx = 0;
 
-export function getFolders() {
+// Cache local des dossiers (chargé depuis l'API)
+let foldersCache = null;
+
+export async function loadFolders() {
+  if (!isAuthenticated()) { foldersCache = { ...defaultFolders }; return; }
   try {
-    const saved = localStorage.getItem(FOLDERS_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {}
-  return { ...defaultFolders };
+    foldersCache = await api.getFolders();
+    if (!foldersCache || Object.keys(foldersCache).length === 0) {
+      foldersCache = { ...defaultFolders };
+    }
+  } catch {
+    foldersCache = { ...defaultFolders };
+  }
 }
 
-export function saveFolders(folders) {
-  localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+export function getFolders() {
+  return foldersCache || { ...defaultFolders };
 }
 
-export function addFolder(key, label) {
+export async function saveFolders(folders) {
+  foldersCache = folders;
+  if (isAuthenticated()) {
+    try { await api.saveFolders(folders); } catch (e) { console.error('saveFolders error:', e); }
+  }
+}
+
+export async function addFolder(key, label) {
   const folders = getFolders();
   if (folders[key]) return false;
   folders[key] = { label, icon: '📁', color: folderColors[colorIdx++ % folderColors.length] };
-  saveFolders(folders);
+  await saveFolders(folders);
   return true;
 }
 
-export function renameFolder(key, newLabel) {
+export async function renameFolder(key, newLabel) {
   const folders = getFolders();
   if (!folders[key]) return false;
   folders[key].label = newLabel;
-  saveFolders(folders);
+  await saveFolders(folders);
   return true;
 }
 
-export function deleteFolder(key) {
+export async function deleteFolder(key) {
   const folders = getFolders();
   if (!folders[key] || key === 'other') return false;
   delete folders[key];
-  saveFolders(folders);
+  await saveFolders(folders);
   return true;
 }
 

@@ -8,7 +8,7 @@ import {
   getTrash, restoreFromTrash, removeFromTrash, emptyTrash,
   toggleFavorite, sortComponents, getComponent,
 } from './storage.js';
-import { categoryBadge, getFolders, addFolder, renameFolder, deleteFolder, defaultFolders } from './categories.js';
+import { categoryBadge, getFolders, addFolder, renameFolder, deleteFolder, defaultFolders, loadFolders } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
 
 let editorView = null;
@@ -99,11 +99,11 @@ async function renderComponentList(filter = '') {
       renderComponentList(filter);
     });
 
-    header.querySelector('.folder-rename-btn').addEventListener('click', (e) => {
+    header.querySelector('.folder-rename-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
       const newName = prompt('Nouveau nom du dossier :', folder.label);
       if (newName && newName.trim()) {
-        renameFolder(key, newName.trim());
+        await renameFolder(key, newName.trim());
         renderComponentList(filter);
         refreshCategoryDropdown();
       }
@@ -111,14 +111,13 @@ async function renderComponentList(filter = '') {
 
     const delBtn = header.querySelector('.folder-delete-btn');
     if (delBtn) {
-      delBtn.addEventListener('click', (e) => {
+      delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (!confirm(`Supprimer le dossier "${folder.label}" ?\nLes composants seront déplacés dans "Autre".`)) return;
-        // Move components to 'other'
-        comps.forEach(async (comp) => {
+        for (const comp of comps) {
           await saveComponent({ ...comp, category: 'other' });
-        });
-        deleteFolder(key);
+        }
+        await deleteFolder(key);
         renderComponentList(filter);
         refreshCategoryDropdown();
       });
@@ -428,12 +427,12 @@ export async function initBuilder() {
   document.getElementById('trash-btn').addEventListener('click', openTrash);
 
   // New folder
-  document.getElementById('new-folder-btn').addEventListener('click', () => {
+  document.getElementById('new-folder-btn').addEventListener('click', async () => {
     const name = prompt('Nom du nouveau dossier :');
     if (!name || !name.trim()) return;
     const key = name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     if (!key) { window.showToast('❌ Nom invalide'); return; }
-    if (!addFolder(key, name.trim())) { window.showToast('⚠️ Ce dossier existe déjà'); return; }
+    if (!await addFolder(key, name.trim())) { window.showToast('⚠️ Ce dossier existe déjà'); return; }
     refreshCategoryDropdown();
     renderComponentList();
     window.showToast(`📁 Dossier "${name.trim()}" créé`);

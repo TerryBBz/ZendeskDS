@@ -1,0 +1,7 @@
+name = "zendesk-template-builder"
+compatibility_date = "2024-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zendeskds"
+database_id = "63bb1e2e-57f9-4a3a-8130-37bdfa79a267"

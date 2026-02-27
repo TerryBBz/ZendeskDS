@@ -7,10 +7,24 @@
     <title>Zendesk Template Builder</title>
   </head>
   <body>
+    <!-- Login overlay -->
+    <div id="login-overlay" class="login-overlay">
+      <div class="login-card">
+        <h1>🔐 Zendesk Template Builder</h1>
+        <p>Entrez le mot de passe pour accéder à l'application</p>
+        <form id="login-form">
+          <input type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password" />
+          <button type="submit" class="btn btn-primary">Se connecter</button>
+          <p id="login-error" class="login-error"></p>
+        </form>
+      </div>
+    </div>
+
     <div id="app">
       <nav class="tabs">
         <button class="tab active" data-tab="builder">🧩 Component Builder</button>
         <button class="tab" data-tab="assembler">📄 Template Assembler</button>
+        <button id="logout-btn" class="btn btn-secondary btn-sm" style="margin-left:auto;">🚪 Déconnexion</button>
       </nav>
 
       <div id="builder" class="tab-content active">

@@ -1,6 +1,5 @@
 import { getComponents, saveComponent } from './storage.js';
-
-const DEFAULTS_LOADED_KEY = 'ztb-defaults-loaded';
+import { isAuthenticated } from './auth.js';
 
 const defaultComponents = [
   {
@@ -87,16 +86,12 @@ const defaultComponents = [
 ];
 
 export async function loadDefaultComponents() {
-  if (localStorage.getItem(DEFAULTS_LOADED_KEY)) return;
+  if (!isAuthenticated()) return;
 
   const existing = await getComponents();
-  if (existing.length > 0) {
-    localStorage.setItem(DEFAULTS_LOADED_KEY, '1');
-    return;
-  }
+  if (existing.length > 0) return;
 
   for (const comp of defaultComponents) {
     await saveComponent(comp);
   }
-  localStorage.setItem(DEFAULTS_LOADED_KEY, '1');
 }

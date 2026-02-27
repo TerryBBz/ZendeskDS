@@ -2,21 +2,68 @@ import './style.css';
 import { initBuilder } from './builder.js';
 import { initAssembler } from './assembler.js';
 import { loadDefaultComponents } from './defaults.js';
-import { restoreFolderAccess, requestFolder, hasFolderAccess } from './storage.js';
+import { isAuthenticated, login, logout } from './auth.js';
+import { loadFolders } from './categories.js';
 
-// Tab navigation
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById(tab.dataset.tab).classList.add('active');
+// --- Login flow ---
+async function showLogin() {
+  const overlay = document.getElementById('login-overlay');
+  const app = document.getElementById('app');
+  overlay.classList.remove('hidden');
+  app.classList.add('hidden');
 
-    if (tab.dataset.tab === 'assembler') {
-      window.dispatchEvent(new Event('assembler-activated'));
+  const form = document.getElementById('login-form');
+  const errorEl = document.getElementById('login-error');
+  const input = document.getElementById('login-password');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.textContent = '';
+    const password = input.value;
+    if (!password) return;
+
+    try {
+      await login(password);
+      overlay.classList.add('hidden');
+      app.classList.remove('hidden');
+      await initApp();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      input.select();
     }
   });
-});
+
+  input.focus();
+}
+
+async function initApp() {
+  // Load folders from API
+  await loadFolders();
+
+  // Load defaults if needed
+  await loadDefaultComponents();
+
+  // Init modules
+  await initBuilder();
+  await initAssembler();
+
+  // Tab navigation
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.tab).classList.add('active');
+
+      if (tab.dataset.tab === 'assembler') {
+        window.dispatchEvent(new Event('assembler-activated'));
+      }
+    });
+  });
+
+  // Logout button
+  document.getElementById('logout-btn')?.addEventListener('click', logout);
+}
 
 // Toast helper
 window.showToast = (message, duration = 2000) => {
@@ -27,37 +74,10 @@ window.showToast = (message, duration = 2000) => {
   setTimeout(() => toast.remove(), duration);
 };
 
-// Folder access banner
-function showFolderBanner() {
-  if (document.getElementById('folder-banner')) return;
-  const banner = document.createElement('div');
-  banner.id = 'folder-banner';
-  banner.style.cssText = 'background:#0984e3;color:white;padding:10px 20px;text-align:center;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;';
-  banner.innerHTML = '📁 <span>Sélectionner un dossier pour sauvegarder vos données en fichiers locaux</span> <button style="background:white;color:#0984e3;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-weight:bold;">Choisir un dossier</button>';
-  banner.querySelector('button').addEventListener('click', async () => {
-    const ok = await requestFolder();
-    if (ok) {
-      banner.remove();
-      window.showToast('📁 Dossier connecté — les données seront sauvegardées en fichiers');
-      // Reload data without re-binding events
-      await loadDefaultComponents();
-      window.dispatchEvent(new Event('storage-changed'));
-    }
-  });
-  document.body.prepend(banner);
-}
-
-// Try to restore previous folder access
-const restored = await restoreFolderAccess();
-
-// Load defaults on first visit
-await loadDefaultComponents();
-
-// Init modules
-await initBuilder();
-await initAssembler();
-
-// Show banner if no folder access
-if (!restored) {
-  showFolderBanner();
+// Start
+if (isAuthenticated()) {
+  document.getElementById('login-overlay').classList.add('hidden');
+  await initApp();
+} else {
+  showLogin();
 }
