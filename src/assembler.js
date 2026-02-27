@@ -87,10 +87,25 @@ function createSidebarFolder(key, folder, comps) {
     <span class="folder-label">${escapeHtml(folder.label)}</span>
     <span class="folder-count">${comps.length}</span>
   `;
-  header.addEventListener('click', () => {
-    if (isCollapsed) collapsedSidebarFolders.delete(key);
-    else collapsedSidebarFolders.add(key);
-    renderSidebar(document.getElementById('search-components').value);
+  header.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (isCollapsed) {
+      collapsedSidebarFolders.delete(key);
+      const list = document.createElement('div');
+      list.className = 'sidebar-folder-components';
+      comps.forEach(comp => list.appendChild(createSidebarComponent(comp)));
+      section.appendChild(list);
+      sidebarSortables.push(new Sortable(list, {
+        group: { name: 'shared', pull: 'clone', put: false },
+        sort: false, animation: 150, ghostClass: 'sortable-ghost',
+        onEnd: () => {}
+      }));
+    } else {
+      collapsedSidebarFolders.add(key);
+      const list = section.querySelector('.sidebar-folder-components');
+      if (list) list.remove();
+    }
+    header.querySelector('.folder-toggle').textContent = collapsedSidebarFolders.has(key) ? '▶' : '▼';
   });
   section.appendChild(header);
 
