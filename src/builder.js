@@ -87,7 +87,7 @@ async function renderComponentList(filter = '') {
       <span class="folder-count">${comps.length}</span>
       <div class="folder-actions">
         <button class="folder-rename-btn" title="Renommer">✏️</button>
-        <button class="folder-delete-btn" title="Supprimer le dossier">✕</button>
+        <button class="folder-delete-btn" title="Supprimer le dossier">🗑️</button>
       </div>
     `;
 
