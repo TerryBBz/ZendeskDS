@@ -16,8 +16,8 @@ export async function onRequestPut(context) {
     }
 
     const result = await env.DB.prepare(
-      'UPDATE components SET name = ?, category = ?, html = ?, favorite = ?, updated_at = ? WHERE id = ?'
-    ).bind(comp.name, comp.category || 'other', comp.html, comp.favorite ? 1 : 0, now, id).run();
+      'UPDATE components SET name = ?, category = ?, html = ?, favorite = ?, folder_id = ?, updated_at = ? WHERE id = ?'
+    ).bind(comp.name, comp.category || 'other', comp.html, comp.favorite ? 1 : 0, comp.folderId || null, now, id).run();
 
     if (result.meta.changes === 0) {
       return new Response(JSON.stringify({ error: 'Composant introuvable' }), {
@@ -38,8 +38,8 @@ export async function onRequestDelete(context) {
     const comp = await env.DB.prepare('SELECT * FROM components WHERE id = ?').bind(id).first();
     if (comp) {
       await env.DB.prepare(
-        'INSERT INTO trash (id, name, category, html, favorite, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-      ).bind(comp.id, comp.name, comp.category, comp.html, comp.favorite, comp.created_at, comp.updated_at, Date.now()).run();
+        'INSERT INTO trash (id, name, category, html, favorite, folder_id, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(comp.id, comp.name, comp.category, comp.html, comp.favorite, comp.folder_id, comp.created_at, comp.updated_at, Date.now()).run();
     }
     await env.DB.prepare('DELETE FROM components WHERE id = ?').bind(id).run();
     return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });

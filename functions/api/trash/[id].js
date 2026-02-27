@@ -11,8 +11,8 @@ export async function onRequestPost(context) {
     }
     const now = Date.now();
     await env.DB.prepare(
-      'INSERT INTO components (id, name, category, html, favorite, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).bind(item.id, item.name, item.category, item.html, item.favorite, item.created_at, now).run();
+      'INSERT INTO components (id, name, category, html, favorite, folder_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(item.id, item.name, item.category, item.html, item.favorite, item.folder_id, item.created_at, now).run();
     await env.DB.prepare('DELETE FROM trash WHERE id = ?').bind(id).run();
 
     return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });

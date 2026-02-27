@@ -1,3 +1,4 @@
+import Sortable from 'sortablejs';
 import { EditorView, basicSetup } from 'codemirror';
 import { html } from '@codemirror/lang-html';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -34,7 +35,7 @@ async function renderComponentList(filter = '') {
   const filtered = filter
     ? components.filter(c =>
         c.name.toLowerCase().includes(filter.toLowerCase()) ||
-        c.category.toLowerCase().includes(filter.toLowerCase())
+        (c.category || '').toLowerCase().includes(filter.toLowerCase())
       )
     : components;
   const sorted = sortComponents(filtered, sortBy);
@@ -43,16 +44,6 @@ async function renderComponentList(filter = '') {
   if (sorted.length === 0 && !filter) {
     list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">Aucun composant</p>`;
     return;
-  }
-
-  const folders = getFolders();
-
-  // Group components by folder
-  const groups = {};
-  for (const comp of sorted) {
-    const cat = comp.category || 'other';
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push(comp);
   }
 
   // Show search results flat (no folders)
@@ -64,20 +55,28 @@ async function renderComponentList(filter = '') {
     return;
   }
 
-  // Render each folder
-  const folderKeys = Object.keys(folders);
-  // Also include any categories that exist in components but not in folders
-  for (const cat of Object.keys(groups)) {
-    if (!folderKeys.includes(cat)) folderKeys.push(cat);
+  const folders = getFolders();
+
+  // Group components by folderId
+  const groups = {};
+  const noFolder = [];
+  for (const comp of sorted) {
+    if (comp.folderId && folders[comp.folderId]) {
+      if (!groups[comp.folderId]) groups[comp.folderId] = [];
+      groups[comp.folderId].push(comp);
+    } else {
+      noFolder.push(comp);
+    }
   }
 
-  for (const key of folderKeys) {
-    const folder = folders[key] || { label: key, icon: '📁', color: '#b2bec3' };
+  // Render each folder
+  for (const [key, folder] of Object.entries(folders)) {
     const comps = groups[key] || [];
     const isCollapsed = collapsedFolders.has(key);
 
     const section = document.createElement('div');
     section.className = 'folder-section';
+    section.dataset.folderId = key;
 
     const header = document.createElement('div');
     header.className = 'folder-header';
@@ -88,7 +87,7 @@ async function renderComponentList(filter = '') {
       <span class="folder-count">${comps.length}</span>
       <div class="folder-actions">
         <button class="folder-rename-btn" title="Renommer">✏️</button>
-        ${key !== 'other' ? '<button class="folder-delete-btn" title="Supprimer le dossier">✕</button>' : ''}
+        <button class="folder-delete-btn" title="Supprimer le dossier">✕</button>
       </div>
     `;
 
@@ -105,29 +104,111 @@ async function renderComponentList(filter = '') {
       if (newName && newName.trim()) {
         await renameFolder(key, newName.trim());
         renderComponentList(filter);
-        refreshCategoryDropdown();
       }
     });
 
-    const delBtn = header.querySelector('.folder-delete-btn');
-    if (delBtn) {
-      delBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (!confirm(`Supprimer le dossier "${folder.label}" ?\nLes composants seront déplacés dans "Autre".`)) return;
-        for (const comp of comps) {
-          await saveComponent({ ...comp, category: 'other' });
+    header.querySelector('.folder-delete-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (comps.length > 0) {
+        const choice = confirm(
+          `Supprimer le dossier "${folder.label}" ?\n\n` +
+          `Il contient ${comps.length} composant(s).\n\n` +
+          `OK = Supprimer le dossier ET les composants\n` +
+          `Annuler = Ne rien faire`
+        );
+        if (!choice) {
+          // Propose de garder les composants
+          const keep = confirm(`Voulez-vous retirer les composants du dossier sans les supprimer ?`);
+          if (keep) {
+            for (const comp of comps) {
+              await saveComponent({ ...comp, folderId: null });
+            }
+            await deleteFolder(key);
+            renderComponentList(filter);
+            window.showToast('📁 Dossier supprimé, composants conservés');
+          }
+          return;
         }
-        await deleteFolder(key);
-        renderComponentList(filter);
-        refreshCategoryDropdown();
-      });
-    }
+        // Delete folder AND components
+        for (const comp of comps) {
+          await deleteComponent(comp.id);
+        }
+      }
+      await deleteFolder(key);
+      renderComponentList(filter);
+      window.showToast('🗑️ Dossier supprimé');
+    });
 
     section.appendChild(header);
 
+    const compContainer = document.createElement('div');
+    compContainer.className = 'folder-components';
+    compContainer.dataset.folderId = key;
     if (!isCollapsed) {
-      comps.forEach(comp => section.appendChild(createComponentEl(comp, filter)));
+      comps.forEach(comp => compContainer.appendChild(createComponentEl(comp, filter)));
     }
+    section.appendChild(compContainer);
+
+    // Enable drop into folder
+    new Sortable(compContainer, {
+      group: 'components',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      onAdd: async (evt) => {
+        const compId = evt.item.dataset.componentId;
+        if (compId) {
+          const comp = await getComponent(compId);
+          if (comp) await saveComponent({ ...comp, folderId: key });
+          renderComponentList(filter);
+        }
+      }
+    });
+
+    list.appendChild(section);
+  }
+
+  // Render components without folder
+  if (noFolder.length > 0) {
+    const section = document.createElement('div');
+    section.className = 'folder-section';
+
+    const header = document.createElement('div');
+    header.className = 'folder-header';
+    const isCollapsed = collapsedFolders.has('__none__');
+    header.innerHTML = `
+      <span class="folder-toggle">${isCollapsed ? '▶' : '▼'}</span>
+      <span class="folder-icon" style="color:#b2bec3">📂</span>
+      <span class="folder-label">Sans dossier</span>
+      <span class="folder-count">${noFolder.length}</span>
+    `;
+    header.addEventListener('click', () => {
+      if (isCollapsed) collapsedFolders.delete('__none__');
+      else collapsedFolders.add('__none__');
+      renderComponentList(filter);
+    });
+    section.appendChild(header);
+
+    const compContainer = document.createElement('div');
+    compContainer.className = 'folder-components';
+    compContainer.dataset.folderId = '__none__';
+    if (!isCollapsed) {
+      noFolder.forEach(comp => compContainer.appendChild(createComponentEl(comp, filter)));
+    }
+    section.appendChild(compContainer);
+
+    new Sortable(compContainer, {
+      group: 'components',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      onAdd: async (evt) => {
+        const compId = evt.item.dataset.componentId;
+        if (compId) {
+          const comp = await getComponent(compId);
+          if (comp) await saveComponent({ ...comp, folderId: null });
+          renderComponentList(filter);
+        }
+      }
+    });
 
     list.appendChild(section);
   }
@@ -137,6 +218,7 @@ function createComponentEl(comp, filter = '') {
   const isFav = comp.favorite;
   const el = document.createElement('div');
   el.className = 'component-item' + (comp.id === currentComponentId ? ' selected' : '');
+  el.dataset.componentId = comp.id;
   el.innerHTML = `
     <div class="component-item-row">
       ${selectMode ? `<input type="checkbox" class="select-cb" ${selectedIds.has(comp.id) ? 'checked' : ''} />` : ''}
@@ -181,15 +263,23 @@ function createComponentEl(comp, filter = '') {
   return el;
 }
 
+const categoryTypes = {
+  header:  { label: 'En-tête',       icon: '📌' },
+  content: { label: 'Contenu',       icon: '📝' },
+  callout: { label: 'Callout',       icon: '💡' },
+  list:    { label: 'Liste',         icon: '📋' },
+  footer:  { label: 'Pied de page',  icon: '📎' },
+  other:   { label: 'Autre',         icon: '🔧' },
+};
+
 function refreshCategoryDropdown() {
   const select = document.getElementById('component-category');
   const current = select.value;
-  const folders = getFolders();
   select.innerHTML = '';
-  for (const [key, folder] of Object.entries(folders)) {
+  for (const [key, cat] of Object.entries(categoryTypes)) {
     const opt = document.createElement('option');
     opt.value = key;
-    opt.textContent = `${folder.icon} ${folder.label}`;
+    opt.textContent = `${cat.icon} ${cat.label}`;
     select.appendChild(opt);
   }
   select.value = current || 'other';
@@ -278,11 +368,13 @@ async function newComponent() {
 
 async function saveCurrentComponent(auto = false) {
   if (!currentComponentId || !editorView) return;
+  const existing = await getComponent(currentComponentId);
   const comp = {
     id: currentComponentId,
     name: document.getElementById('component-name').value || 'Sans nom',
     category: document.getElementById('component-category').value,
-    html: editorView.state.doc.toString()
+    html: editorView.state.doc.toString(),
+    folderId: existing?.folderId || null
   };
   await saveComponent(comp);
   hasUnsavedChanges = false;
@@ -433,7 +525,6 @@ export async function initBuilder() {
     const key = name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     if (!key) { window.showToast('❌ Nom invalide'); return; }
     if (!await addFolder(key, name.trim())) { window.showToast('⚠️ Ce dossier existe déjà'); return; }
-    refreshCategoryDropdown();
     renderComponentList();
     window.showToast(`📁 Dossier "${name.trim()}" créé`);
   });

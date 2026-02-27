@@ -2,7 +2,7 @@ export async function onRequestGet(context) {
   const { env } = context;
   try {
     const { results } = await env.DB.prepare(
-      'SELECT id, name, category, html, favorite, created_at AS createdAt, updated_at AS updatedAt, deleted_at AS deletedAt FROM trash ORDER BY deleted_at DESC'
+      'SELECT id, name, category, html, favorite, folder_id AS folderId, created_at AS createdAt, updated_at AS updatedAt, deleted_at AS deletedAt FROM trash ORDER BY deleted_at DESC'
     ).all();
     return new Response(JSON.stringify(results.map(r => ({ ...r, favorite: !!r.favorite }))), {
       headers: { 'Content-Type': 'application/json' }
