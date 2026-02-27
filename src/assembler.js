@@ -89,7 +89,8 @@ function createSidebarFolder(key, folder, comps) {
   `;
   header.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (isCollapsed) {
+    const collapsed = collapsedSidebarFolders.has(key);
+    if (collapsed) {
       collapsedSidebarFolders.delete(key);
       const list = document.createElement('div');
       list.className = 'sidebar-folder-components';
