@@ -24,6 +24,7 @@
       <nav class="tabs">
         <button class="tab active" data-tab="builder">🧩 Component Builder</button>
         <button class="tab" data-tab="assembler">📄 Template Assembler</button>
+        <button id="theme-toggle-btn" class="btn btn-secondary btn-sm" title="Changer le thème">🌙</button>
         <button id="logout-btn" class="btn btn-secondary btn-sm" style="margin-left:auto;">🚪 Déconnexion</button>
       </nav>
 
@@ -67,7 +68,14 @@
                 </select>
                 <button id="save-component-btn" class="btn btn-primary">💾 Sauvegarder</button>
                 <button id="copy-component-html-btn" class="btn btn-secondary">📋 Copier HTML</button>
+                <button id="duplicate-component-btn" class="btn btn-secondary">📑 Dupliquer</button>
+                <button id="history-component-btn" class="btn btn-secondary">🕐 Historique</button>
                 <button id="delete-component-btn" class="btn btn-danger">🗑️ Supprimer</button>
+              </div>
+              <div class="editor-tags-row">
+                <label>🏷️</label>
+                <div id="component-tags" class="tags-container"></div>
+                <input type="text" id="tag-input" placeholder="Ajouter un tag..." class="tag-input" />
               </div>
               <div class="editor-split">
                 <div class="preview-side">
@@ -99,6 +107,8 @@
               <button id="load-template-btn" class="btn btn-secondary">📂 Charger</button>
               <button id="clear-template-btn" class="btn btn-secondary">🗑️ Vider</button>
               <button id="copy-html-btn" class="btn btn-primary">📋 Copier le HTML</button>
+              <button id="preview-fullscreen-btn" class="btn btn-secondary">👁 Prévisualiser</button>
+              <button id="export-image-btn" class="btn btn-secondary">📸 Image</button>
             </div>
 
             <div class="assembler-split">
@@ -128,6 +138,26 @@
 
       <!-- Modal corbeille -->
       <div id="trash-modal" class="modal hidden">
+
+      <!-- Modal preview plein écran -->
+      <div id="preview-modal" class="modal hidden">
+
+      <!-- Modal historique versions -->
+      <div id="history-modal" class="modal hidden">
+        <div class="modal-content">
+          <h2>🕐 Historique des versions</h2>
+          <div id="version-list"></div>
+          <button id="history-modal-close" class="btn btn-secondary modal-close">Fermer</button>
+        </div>
+      </div>
+        <div class="modal-content preview-modal-content">
+          <div class="modal-header-row">
+            <h2>👁 Aperçu du template</h2>
+            <button id="preview-modal-close" class="btn btn-secondary btn-sm">✕ Fermer</button>
+          </div>
+          <iframe id="preview-iframe" class="preview-iframe"></iframe>
+        </div>
+      </div>
         <div class="modal-content">
           <div class="modal-header-row">
             <h2>🗑️ Corbeille</h2>

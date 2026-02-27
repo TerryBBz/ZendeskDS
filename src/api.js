@@ -1,5 +1,17 @@
 import { getToken, clearToken } from './auth.js';
 
+// Offline detection
+let offlineBanner = null;
+function setOffline(offline) {
+  if (!offlineBanner) {
+    offlineBanner = document.createElement('div');
+    offlineBanner.className = 'offline-banner';
+    offlineBanner.textContent = '⚠️ Connexion perdue — les modifications ne seront pas sauvegardées';
+    document.body.prepend(offlineBanner);
+  }
+  offlineBanner.classList.toggle('hidden', !offline);
+}
+
 async function apiFetch(path, options = {}) {
   const token = getToken();
   const headers = {
@@ -8,7 +20,15 @@ async function apiFetch(path, options = {}) {
     ...options.headers
   };
 
-  const res = await fetch(path, { ...options, headers });
+  let res;
+  try {
+    res = await fetch(path, { ...options, headers });
+  } catch (e) {
+    setOffline(true);
+    throw new Error('Réseau indisponible');
+  }
+
+  setOffline(false);
 
   if (res.status === 401) {
     clearToken();
@@ -18,7 +38,8 @@ async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Erreur ${res.status}`);
+    const msg = data.error || `Erreur ${res.status}`;
+    throw new Error(msg);
   }
 
   return res.json();
@@ -46,4 +67,7 @@ export const api = {
   // Folders
   getFolders: () => apiFetch('/api/folders'),
   saveFolders: (folders) => apiFetch('/api/folders', { method: 'PUT', body: JSON.stringify(folders) }),
+
+  // Versions
+  getVersions: (componentId) => apiFetch(`/api/versions?componentId=${encodeURIComponent(componentId)}`),
 };

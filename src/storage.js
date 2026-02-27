@@ -6,7 +6,7 @@ import { api } from './api.js';
 export async function getComponents() {
   if (!isAuthenticated()) return [];
   try { return await api.getComponents(); }
-  catch (e) { console.error('getComponents error:', e); return []; }
+  catch (e) { console.error('getComponents error:', e); window.showToast?.('❌ Erreur chargement composants', 3000, 'error'); return []; }
 }
 
 export async function saveComponents(_components) {
@@ -60,13 +60,13 @@ export async function toggleFavorite(id) {
 export async function deleteComponent(id) {
   if (!isAuthenticated()) return;
   try { await api.deleteComponent(id); }
-  catch (e) { console.error('deleteComponent error:', e); }
+  catch (e) { console.error('deleteComponent error:', e); window.showToast?.('❌ Erreur suppression', 3000, 'error'); }
 }
 
 export async function getTrash() {
   if (!isAuthenticated()) return [];
   try { return await api.getTrash(); }
-  catch (e) { console.error('getTrash error:', e); return []; }
+  catch (e) { console.error('getTrash error:', e); window.showToast?.('❌ Erreur chargement corbeille', 3000, 'error'); return []; }
 }
 
 export async function restoreFromTrash(id) {
@@ -74,25 +74,25 @@ export async function restoreFromTrash(id) {
   try {
     await api.restoreFromTrash(id);
     return { id };
-  } catch (e) { console.error('restoreFromTrash error:', e); return null; }
+  } catch (e) { console.error('restoreFromTrash error:', e); window.showToast?.('❌ Erreur restauration', 3000, 'error'); return null; }
 }
 
 export async function removeFromTrash(id) {
   if (!isAuthenticated()) return;
   try { await api.removeFromTrash(id); }
-  catch (e) { console.error('removeFromTrash error:', e); }
+  catch (e) { console.error('removeFromTrash error:', e); window.showToast?.('❌ Erreur suppression', 3000, 'error'); }
 }
 
 export async function emptyTrash() {
   if (!isAuthenticated()) return;
   try { await api.emptyTrash(); }
-  catch (e) { console.error('emptyTrash error:', e); }
+  catch (e) { console.error('emptyTrash error:', e); window.showToast?.('❌ Erreur vidage corbeille', 3000, 'error'); }
 }
 
 export async function getTemplates() {
   if (!isAuthenticated()) return [];
   try { return await api.getTemplates(); }
-  catch (e) { console.error('getTemplates error:', e); return []; }
+  catch (e) { console.error('getTemplates error:', e); window.showToast?.('❌ Erreur chargement templates', 3000, 'error'); return []; }
 }
 
 export async function saveTemplate(template) {
@@ -104,13 +104,13 @@ export async function saveTemplate(template) {
     } else {
       await api.createTemplate(template);
     }
-  } catch (e) { console.error('saveTemplate error:', e); }
+  } catch (e) { console.error('saveTemplate error:', e); window.showToast?.('❌ Erreur sauvegarde template', 3000, 'error'); }
 }
 
 export async function deleteTemplate(id) {
   if (!isAuthenticated()) return;
   try { await api.deleteTemplate(id); }
-  catch (e) { console.error('deleteTemplate error:', e); }
+  catch (e) { console.error('deleteTemplate error:', e); window.showToast?.('❌ Erreur suppression template', 3000, 'error'); }
 }
 
 export async function exportComponentsJSON() {
@@ -147,4 +147,10 @@ export async function exportWithDialog() {
   a.click();
   URL.revokeObjectURL(url);
   return true;
+}
+
+export async function getVersions(componentId) {
+  if (!isAuthenticated()) return [];
+  try { return await api.getVersions(componentId); }
+  catch (e) { console.error('getVersions error:', e); return []; }
 }

@@ -1,4 +1,5 @@
 import Sortable from 'sortablejs';
+import html2canvas from 'html2canvas';
 import {
   getComponents, getTemplates, saveTemplate, deleteTemplate
 } from './storage.js';
@@ -29,7 +30,8 @@ async function renderSidebar(filter = '') {
   const filtered = filter
     ? components.filter(c =>
         c.name.toLowerCase().includes(filter.toLowerCase()) ||
-        (c.category || '').toLowerCase().includes(filter.toLowerCase())
+        (c.category || '').toLowerCase().includes(filter.toLowerCase()) ||
+        (c.tags || []).some(t => t.toLowerCase().includes(filter.toLowerCase()))
       )
     : components;
 
@@ -37,13 +39,6 @@ async function renderSidebar(filter = '') {
 
   if (filtered.length === 0) {
     container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Aucun composant disponible</p>';
-    return;
-  }
-
-  // Flat list when searching
-  if (filter) {
-    filtered.forEach(comp => container.appendChild(createSidebarComponent(comp)));
-    initSidebarSortable();
     return;
   }
 
@@ -432,6 +427,43 @@ function clearTemplate() {
   updateTemplatePreview();
 }
 
+function openFullscreenPreview() {
+  const html = getTemplateHTML();
+  if (!html) { window.showToast('⚠️ Le template est vide', 2500, 'warning'); return; }
+  const modal = document.getElementById('preview-modal');
+  const iframe = document.getElementById('preview-iframe');
+  modal.classList.remove('hidden');
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:16px;font-family:sans-serif;}</style></head><body>${html}</body></html>`);
+  doc.close();
+}
+
+async function exportAsImage() {
+  const preview = document.getElementById('template-preview');
+  if (!preview.innerHTML.trim()) {
+    window.showToast('⚠️ Le template est vide', 2500, 'warning');
+    return;
+  }
+  window.showToast('📸 Capture en cours...');
+  try {
+    const canvas = await html2canvas(preview, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+    const link = document.createElement('a');
+    link.download = `template-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    window.showToast('📸 Image exportée !');
+  } catch (e) {
+    console.error('Export image error:', e);
+    window.showToast('❌ Erreur export image', 3000, 'error');
+  }
+}
+
 export async function initAssembler() {
   await renderSidebar();
   renderDropZone();
@@ -441,12 +473,18 @@ export async function initAssembler() {
   });
 
   document.getElementById('copy-html-btn').addEventListener('click', copyHTML);
+  document.getElementById('preview-fullscreen-btn').addEventListener('click', openFullscreenPreview);
+  document.getElementById('export-image-btn').addEventListener('click', exportAsImage);
   document.getElementById('save-template-btn').addEventListener('click', handleSaveTemplate);
   document.getElementById('load-template-btn').addEventListener('click', handleLoadTemplate);
   document.getElementById('clear-template-btn').addEventListener('click', clearTemplate);
 
   document.querySelector('.modal-close').addEventListener('click', () => {
     document.getElementById('load-modal').classList.add('hidden');
+  });
+
+  document.getElementById('preview-modal-close').addEventListener('click', () => {
+    document.getElementById('preview-modal').classList.add('hidden');
   });
 
   // Refresh sidebar when switching to assembler tab

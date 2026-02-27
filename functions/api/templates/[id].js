@@ -4,6 +4,17 @@ export async function onRequestPut(context) {
   try {
     const tpl = await request.json();
     const now = Date.now();
+
+    // Optimistic locking
+    if (tpl.updatedAt) {
+      const existing = await env.DB.prepare('SELECT updated_at FROM templates WHERE id = ?').bind(id).first();
+      if (existing && existing.updated_at !== tpl.updatedAt) {
+        return new Response(JSON.stringify({ error: 'conflict', message: 'Ce template a été modifié par quelqu\'un d\'autre' }), {
+          status: 409, headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     const result = await env.DB.prepare(
       'UPDATE templates SET name = ?, blocks = ?, updated_at = ? WHERE id = ?'
     ).bind(tpl.name, JSON.stringify(tpl.blocks || []), now, id).run();

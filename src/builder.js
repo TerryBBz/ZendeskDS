@@ -7,7 +7,7 @@ import {
   getComponents, saveComponent, deleteComponent,
   exportComponentsJSON, importComponentsJSON,
   getTrash, restoreFromTrash, removeFromTrash, emptyTrash,
-  toggleFavorite, sortComponents, getComponent,
+  toggleFavorite, sortComponents, getComponent, getVersions,
 } from './storage.js';
 import { categoryBadge, getFolders, addFolder, renameFolder, deleteFolder, defaultFolders, loadFolders } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
@@ -19,6 +19,7 @@ let selectMode = false;
 let selectedIds = new Set();
 let hasUnsavedChanges = false;
 let autosaveTimer = null;
+let currentTags = [];
 const AUTOSAVE_DELAY = 1500; // 1.5s après la dernière modif
 
 function generateId() {
@@ -35,23 +36,15 @@ async function renderComponentList(filter = '') {
   const filtered = filter
     ? components.filter(c =>
         c.name.toLowerCase().includes(filter.toLowerCase()) ||
-        (c.category || '').toLowerCase().includes(filter.toLowerCase())
+        (c.category || '').toLowerCase().includes(filter.toLowerCase()) ||
+        (c.tags || []).some(t => t.toLowerCase().includes(filter.toLowerCase()))
       )
     : components;
   const sorted = sortComponents(filtered, sortBy);
   list.innerHTML = '';
 
-  if (sorted.length === 0 && !filter) {
-    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">Aucun composant</p>`;
-    return;
-  }
-
-  // Show search results flat (no folders)
-  if (filter) {
-    sorted.forEach(comp => list.appendChild(createComponentEl(comp, filter)));
-    if (sorted.length === 0) {
-      list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">Aucun résultat</p>`;
-    }
+  if (sorted.length === 0) {
+    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${filter ? 'Aucun résultat' : 'Aucun composant'}</p>`;
     return;
   }
 
@@ -225,6 +218,7 @@ function createComponentEl(comp, filter = '') {
       <button class="fav-btn ${isFav ? 'active' : ''}" title="Favori">${isFav ? '★' : '☆'}</button>
       <div class="component-item-info">
         <div class="name">${escapeHtml(comp.name)}</div>
+        ${(comp.tags && comp.tags.length) ? `<div class="item-tags">${comp.tags.map(t => `<span class="item-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       </div>
       ${!selectMode ? '<button class="delete-item-btn" title="Supprimer">🗑️</button>' : ''}
     </div>
@@ -294,6 +288,10 @@ async function selectComponent(id) {
   document.getElementById('editor-area').classList.remove('hidden');
   document.getElementById('component-name').value = comp.name;
   document.getElementById('component-category').value = comp.category;
+
+  // Load tags
+  currentTags = comp.tags || [];
+  renderTags();
 
   if (editorView) {
     editorView.dispatch({
@@ -374,12 +372,81 @@ async function saveCurrentComponent(auto = false) {
     name: document.getElementById('component-name').value || 'Sans nom',
     category: document.getElementById('component-category').value,
     html: editorView.state.doc.toString(),
-    folderId: existing?.folderId || null
+    folderId: existing?.folderId || null,
+    tags: currentTags
   };
   await saveComponent(comp);
   hasUnsavedChanges = false;
   await renderComponentList();
   if (!auto) window.showToast('✅ Composant sauvegardé');
+}
+
+function renderTags() {
+  const container = document.getElementById('component-tags');
+  container.innerHTML = '';
+  currentTags.forEach((tag, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `${escapeHtml(tag)}<button class="tag-remove" title="Retirer">✕</button>`;
+    chip.querySelector('.tag-remove').addEventListener('click', () => {
+      currentTags.splice(i, 1);
+      renderTags();
+      scheduleAutosave();
+    });
+    container.appendChild(chip);
+  });
+}
+
+async function openVersionHistory() {
+  if (!currentComponentId) return;
+  const modal = document.getElementById('history-modal');
+  const list = document.getElementById('version-list');
+  list.innerHTML = '<p style="color:var(--text-muted);">Chargement...</p>';
+  modal.classList.remove('hidden');
+
+  const versions = await getVersions(currentComponentId);
+  list.innerHTML = '';
+
+  if (versions.length === 0) {
+    list.innerHTML = '<p style="color:var(--text-muted);">Aucune version précédente</p>';
+    return;
+  }
+
+  versions.forEach(ver => {
+    const date = new Date(ver.createdAt).toLocaleDateString('fr-FR', {
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
+    const el = document.createElement('div');
+    el.className = 'version-item';
+    el.innerHTML = `
+      <div class="version-info">
+        <div class="version-name">${escapeHtml(ver.name)}</div>
+        <div class="version-date">${date}</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="version-preview-btn" title="Voir le HTML">👁 Voir</button>
+        <button class="btn btn-primary btn-sm" title="Restaurer cette version">↩️ Restaurer</button>
+      </div>
+    `;
+    el.querySelector('.version-preview-btn').addEventListener('click', () => {
+      const w = window.open('', '_blank', 'width=800,height=600');
+      w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Version - ${escapeHtml(ver.name)}</title></head><body>${ver.html}</body></html>`);
+      w.document.close();
+    });
+    el.querySelector('.btn-primary').addEventListener('click', async () => {
+      if (!confirm(`Restaurer la version "${ver.name}" ?`)) return;
+      if (editorView) {
+        editorView.dispatch({
+          changes: { from: 0, to: editorView.state.doc.length, insert: ver.html }
+        });
+      }
+      updatePreview(ver.html);
+      await saveCurrentComponent();
+      modal.classList.add('hidden');
+      window.showToast('↩️ Version restaurée');
+    });
+    list.appendChild(el);
+  });
 }
 
 async function deleteCurrentComponent() {
@@ -391,6 +458,25 @@ async function deleteCurrentComponent() {
   document.getElementById('editor-area').classList.add('hidden');
   await renderComponentList();
   window.showToast('🗑️ Composant mis à la corbeille');
+}
+
+async function duplicateCurrentComponent() {
+  if (!currentComponentId || !editorView) return;
+  const existing = await getComponent(currentComponentId);
+  if (!existing) return;
+  const id = generateId();
+  const comp = {
+    id,
+    name: existing.name + ' (copie)',
+    category: existing.category,
+    html: editorView.state.doc.toString(),
+    folderId: existing.folderId || null,
+    tags: [...(existing.tags || [])]
+  };
+  await saveComponent(comp);
+  await renderComponentList();
+  await selectComponent(id);
+  window.showToast('📑 Composant dupliqué');
 }
 
 function downloadJSON(json, filename) {
@@ -512,6 +598,11 @@ export async function initBuilder() {
     });
   });
   document.getElementById('delete-component-btn').addEventListener('click', deleteCurrentComponent);
+  document.getElementById('duplicate-component-btn').addEventListener('click', duplicateCurrentComponent);
+  document.getElementById('history-component-btn').addEventListener('click', openVersionHistory);
+  document.getElementById('history-modal-close').addEventListener('click', () => {
+    document.getElementById('history-modal').classList.add('hidden');
+  });
   document.getElementById('export-btn').addEventListener('click', handleExportAll);
   document.getElementById('import-btn').addEventListener('click', () => {
     document.getElementById('import-file').click();
@@ -586,17 +677,44 @@ export async function initBuilder() {
     window.showToast('🗑️ Corbeille vidée');
   });
 
-  // Ctrl+S to save
+  // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
       if (currentComponentId) saveCurrentComponent();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      e.preventDefault();
+      newComponent();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+      e.preventDefault();
+      if (currentComponentId) duplicateCurrentComponent();
+    }
+    if (e.key === 'Escape') {
+      document.getElementById('trash-modal').classList.add('hidden');
+      document.getElementById('load-modal').classList.add('hidden');
+      document.getElementById('preview-modal').classList.add('hidden');
     }
   });
 
   // Autosave on name/category change
   document.getElementById('component-name').addEventListener('input', scheduleAutosave);
   document.getElementById('component-category').addEventListener('change', scheduleAutosave);
+
+  // Tag input
+  document.getElementById('tag-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = e.target.value.trim();
+      if (val && !currentTags.includes(val)) {
+        currentTags.push(val);
+        renderTags();
+        scheduleAutosave();
+      }
+      e.target.value = '';
+    }
+  });
 
   // Warn before leaving with unsaved changes
   window.addEventListener('beforeunload', (e) => {

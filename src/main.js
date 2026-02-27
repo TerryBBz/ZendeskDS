@@ -63,16 +63,36 @@ async function initApp() {
 
   // Logout button
   document.getElementById('logout-btn')?.addEventListener('click', logout);
+
+  // Theme toggle
+  const themeBtn = document.getElementById('theme-toggle-btn');
+  const savedTheme = localStorage.getItem('ztb-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  themeBtn.textContent = savedTheme === 'light' ? '☀️' : '🌙';
+  themeBtn.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('ztb-theme', next);
+    themeBtn.textContent = next === 'light' ? '☀️' : '🌙';
+  });
 }
 
-// Toast helper
-window.showToast = (message, duration = 2000) => {
+// Toast helper — type: 'success' (default), 'error', 'warning'
+window.showToast = (message, duration = 2500, type = 'success') => {
   const toast = document.createElement('div');
-  toast.className = 'toast';
+  toast.className = `toast toast-${type}`;
   toast.textContent = message;
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), duration);
+  setTimeout(() => {
+    toast.classList.add('toast-exit');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  }, duration);
 };
+
+// Apply saved theme early
+const earlyTheme = localStorage.getItem('ztb-theme') || 'dark';
+document.documentElement.setAttribute('data-theme', earlyTheme);
 
 // Start
 if (isAuthenticated()) {
