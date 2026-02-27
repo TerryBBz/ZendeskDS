@@ -382,6 +382,22 @@ input[type="text"]:focus, select:focus {
   color: #333;
 }
 
+/* Assembler sidebar folders */
+.sidebar-folder-section { margin-bottom: 4px; }
+.sidebar-folder-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; cursor: pointer;
+  border-radius: var(--radius);
+  font-size: 13px; color: var(--text);
+  user-select: none;
+}
+.sidebar-folder-header:hover { background: var(--bg-elevated); }
+.sidebar-folder-header .folder-toggle { font-size: 10px; color: var(--text-muted); width: 12px; }
+.sidebar-folder-header .folder-icon { font-size: 14px; }
+.sidebar-folder-header .folder-label { flex: 1; font-weight: 500; }
+.sidebar-folder-header .folder-count { font-size: 11px; color: var(--text-muted); }
+.sidebar-folder-components { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 4px 12px; }
+
 .assembler-main {
   flex: 1;
   display: flex;

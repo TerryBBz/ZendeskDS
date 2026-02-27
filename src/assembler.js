@@ -2,13 +2,14 @@ import Sortable from 'sortablejs';
 import {
   getComponents, getTemplates, saveTemplate, deleteTemplate
 } from './storage.js';
-import { categoryBadge } from './categories.js';
+import { categoryBadge, getFolders } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
 
 let templateBlocks = []; // { componentId, instanceId, customHtml? }
 let sidebarSortable = null;
 let dropZoneSortable = null;
 let componentsCache = [];
+const collapsedSidebarFolders = new Set();
 
 function generateInstanceId() {
   return 'inst-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
@@ -27,7 +28,7 @@ async function renderSidebar(filter = '') {
   const filtered = filter
     ? components.filter(c =>
         c.name.toLowerCase().includes(filter.toLowerCase()) ||
-        c.category.toLowerCase().includes(filter.toLowerCase())
+        (c.category || '').toLowerCase().includes(filter.toLowerCase())
       )
     : components;
 
@@ -38,28 +39,90 @@ async function renderSidebar(filter = '') {
     return;
   }
 
-  filtered.forEach(comp => {
-    const el = document.createElement('div');
-    el.className = 'sidebar-component';
-    el.dataset.componentId = comp.id;
-    el.innerHTML = `
-      <div class="sidebar-component-header">
-        <div>
-          <div class="name">${escapeHtml(comp.name)}</div>
-          <div class="category">${categoryBadge(comp.category)}</div>
-        </div>
-        <button class="add-component-btn" title="Ajouter au template">+</button>
-      </div>
-      <div class="mini-preview">${comp.html}</div>
-    `;
-    el.querySelector('.add-component-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      addComponentToTemplate(comp.id);
-    });
-    container.appendChild(el);
-  });
+  // Flat list when searching
+  if (filter) {
+    filtered.forEach(comp => container.appendChild(createSidebarComponent(comp)));
+    initSidebarSortable();
+    return;
+  }
+
+  // Group by folderId
+  const folders = getFolders();
+  const groups = {};
+  const noFolder = [];
+  for (const comp of filtered) {
+    if (comp.folderId && folders[comp.folderId]) {
+      if (!groups[comp.folderId]) groups[comp.folderId] = [];
+      groups[comp.folderId].push(comp);
+    } else {
+      noFolder.push(comp);
+    }
+  }
+
+  // Render each folder
+  for (const [key, folder] of Object.entries(folders)) {
+    const comps = groups[key] || [];
+    if (comps.length === 0) continue;
+    container.appendChild(createSidebarFolder(key, folder, comps));
+  }
+
+  // Sans dossier
+  if (noFolder.length > 0) {
+    container.appendChild(createSidebarFolder('__none__', { label: 'Sans dossier', icon: '📂', color: '#b2bec3' }, noFolder));
+  }
 
   initSidebarSortable();
+}
+
+function createSidebarFolder(key, folder, comps) {
+  const isCollapsed = collapsedSidebarFolders.has(key);
+  const section = document.createElement('div');
+  section.className = 'sidebar-folder-section';
+
+  const header = document.createElement('div');
+  header.className = 'sidebar-folder-header';
+  header.innerHTML = `
+    <span class="folder-toggle">${isCollapsed ? '▶' : '▼'}</span>
+    <span class="folder-icon" style="color:${folder.color}">${folder.icon}</span>
+    <span class="folder-label">${escapeHtml(folder.label)}</span>
+    <span class="folder-count">${comps.length}</span>
+  `;
+  header.addEventListener('click', () => {
+    if (isCollapsed) collapsedSidebarFolders.delete(key);
+    else collapsedSidebarFolders.add(key);
+    renderSidebar(document.getElementById('search-components').value);
+  });
+  section.appendChild(header);
+
+  if (!isCollapsed) {
+    const list = document.createElement('div');
+    list.className = 'sidebar-folder-components';
+    comps.forEach(comp => list.appendChild(createSidebarComponent(comp)));
+    section.appendChild(list);
+  }
+
+  return section;
+}
+
+function createSidebarComponent(comp) {
+  const el = document.createElement('div');
+  el.className = 'sidebar-component';
+  el.dataset.componentId = comp.id;
+  el.innerHTML = `
+    <div class="sidebar-component-header">
+      <div>
+        <div class="name">${escapeHtml(comp.name)}</div>
+        <div class="category">${categoryBadge(comp.category)}</div>
+      </div>
+      <button class="add-component-btn" title="Ajouter au template">+</button>
+    </div>
+    <div class="mini-preview">${comp.html}</div>
+  `;
+  el.querySelector('.add-component-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    addComponentToTemplate(comp.id);
+  });
+  return el;
 }
 
 function initSidebarSortable() {
