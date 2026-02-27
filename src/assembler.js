@@ -439,28 +439,6 @@ function openFullscreenPreview() {
   doc.close();
 }
 
-async function screenshotToClipboard() {
-  const preview = document.getElementById('template-preview');
-  if (!preview.innerHTML.trim()) {
-    window.showToast('⚠️ Le template est vide', 2500, 'warning');
-    return;
-  }
-  window.showToast('📸 Capture en cours...');
-  try {
-    // Pass blob as a Promise to ClipboardItem so Chrome keeps the user gesture
-    const item = new ClipboardItem({
-      'image/png': html2canvas(preview, {
-        backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false
-      }).then(canvas => new Promise(resolve => canvas.toBlob(resolve, 'image/png')))
-    });
-    await navigator.clipboard.write([item]);
-    window.showToast('📸 Copié — Ctrl+V pour coller !');
-  } catch (e) {
-    console.error('Screenshot error:', e);
-    window.showToast('❌ Erreur capture: ' + e.message, 3000, 'error');
-  }
-}
-
 async function exportAsImage() {
   const preview = document.getElementById('template-preview');
   if (!preview.innerHTML.trim()) {
@@ -492,7 +470,6 @@ export async function initAssembler() {
 
   document.getElementById('copy-html-btn').addEventListener('click', copyHTML);
   document.getElementById('preview-fullscreen-btn').addEventListener('click', openFullscreenPreview);
-  document.getElementById('screenshot-btn').addEventListener('click', screenshotToClipboard);
   document.getElementById('export-image-btn').addEventListener('click', exportAsImage);
   document.getElementById('save-template-btn').addEventListener('click', handleSaveTemplate);
   document.getElementById('load-template-btn').addEventListener('click', handleLoadTemplate);
