@@ -447,20 +447,17 @@ async function screenshotToClipboard() {
   }
   window.showToast('📸 Capture en cours...');
   try {
-    const canvas = await html2canvas(preview, {
-      backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false
+    // Pass blob as a Promise to ClipboardItem so Chrome keeps the user gesture
+    const item = new ClipboardItem({
+      'image/png': html2canvas(preview, {
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false
+      }).then(canvas => new Promise(resolve => canvas.toBlob(resolve, 'image/png')))
     });
-    canvas.toBlob(async (blob) => {
-      try {
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-        window.showToast('📸 Copié — Ctrl+V pour coller !');
-      } catch (_) {
-        window.showToast('❌ Copie non supportée par ce navigateur', 3000, 'error');
-      }
-    }, 'image/png');
+    await navigator.clipboard.write([item]);
+    window.showToast('📸 Copié — Ctrl+V pour coller !');
   } catch (e) {
     console.error('Screenshot error:', e);
-    window.showToast('❌ Erreur capture', 3000, 'error');
+    window.showToast('❌ Erreur capture: ' + e.message, 3000, 'error');
   }
 }
 
