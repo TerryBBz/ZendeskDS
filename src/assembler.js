@@ -439,7 +439,7 @@ function openFullscreenPreview() {
   doc.close();
 }
 
-async function exportAsImage() {
+async function screenshotToClipboard() {
   const preview = document.getElementById('template-preview');
   if (!preview.innerHTML.trim()) {
     window.showToast('⚠️ Le template est vide', 2500, 'warning');
@@ -448,27 +448,37 @@ async function exportAsImage() {
   window.showToast('📸 Capture en cours...');
   try {
     const canvas = await html2canvas(preview, {
-      backgroundColor: '#ffffff',
-      scale: 2,
-      useCORS: true,
-      logging: false
+      backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false
     });
-    // Copy to clipboard
     canvas.toBlob(async (blob) => {
       try {
-        await navigator.clipboard.write([
-          new ClipboardItem({ 'image/png': blob })
-        ]);
-        window.showToast('📸 Image copiée — Ctrl+V pour coller !');
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        window.showToast('📸 Copié — Ctrl+V pour coller !');
       } catch (_) {
-        // Fallback: download file
-        const link = document.createElement('a');
-        link.download = `template-${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        window.showToast('📸 Image téléchargée (copie non supportée)');
+        window.showToast('❌ Copie non supportée par ce navigateur', 3000, 'error');
       }
     }, 'image/png');
+  } catch (e) {
+    console.error('Screenshot error:', e);
+    window.showToast('❌ Erreur capture', 3000, 'error');
+  }
+}
+
+async function exportAsImage() {
+  const preview = document.getElementById('template-preview');
+  if (!preview.innerHTML.trim()) {
+    window.showToast('⚠️ Le template est vide', 2500, 'warning');
+    return;
+  }
+  try {
+    const canvas = await html2canvas(preview, {
+      backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false
+    });
+    const link = document.createElement('a');
+    link.download = `template-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    window.showToast('🖼️ Image téléchargée !');
   } catch (e) {
     console.error('Export image error:', e);
     window.showToast('❌ Erreur export image', 3000, 'error');
@@ -485,6 +495,7 @@ export async function initAssembler() {
 
   document.getElementById('copy-html-btn').addEventListener('click', copyHTML);
   document.getElementById('preview-fullscreen-btn').addEventListener('click', openFullscreenPreview);
+  document.getElementById('screenshot-btn').addEventListener('click', screenshotToClipboard);
   document.getElementById('export-image-btn').addEventListener('click', exportAsImage);
   document.getElementById('save-template-btn').addEventListener('click', handleSaveTemplate);
   document.getElementById('load-template-btn').addEventListener('click', handleLoadTemplate);
