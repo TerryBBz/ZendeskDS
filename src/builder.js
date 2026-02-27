@@ -384,6 +384,7 @@ async function saveCurrentComponent(auto = false) {
 
 async function deleteCurrentComponent() {
   if (!currentComponentId) return;
+  if (!confirm('Supprimer ce composant ?')) return;
   await deleteComponent(currentComponentId);
   currentComponentId = null;
   document.getElementById('editor-placeholder').classList.remove('hidden');
