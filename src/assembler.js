@@ -6,7 +6,7 @@ import { categoryBadge, getFolders } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
 
 let templateBlocks = []; // { componentId, instanceId, customHtml? }
-let sidebarSortable = null;
+let sidebarSortables = [];
 let dropZoneSortable = null;
 let componentsCache = [];
 const collapsedSidebarFolders = new Set();
@@ -126,16 +126,34 @@ function createSidebarComponent(comp) {
 }
 
 function initSidebarSortable() {
-  const container = document.getElementById('available-components');
-  if (sidebarSortable) sidebarSortable.destroy();
+  sidebarSortables.forEach(s => s.destroy());
+  sidebarSortables = [];
 
-  sidebarSortable = new Sortable(container, {
-    group: { name: 'shared', pull: 'clone', put: false },
-    sort: false,
-    animation: 150,
-    ghostClass: 'sortable-ghost',
-    onEnd: () => {}
+  // Init Sortable on each folder's component list
+  const lists = document.querySelectorAll('.sidebar-folder-components');
+  lists.forEach(list => {
+    sidebarSortables.push(new Sortable(list, {
+      group: { name: 'shared', pull: 'clone', put: false },
+      sort: false,
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      onEnd: () => {}
+    }));
   });
+
+  // Also for flat search results (components directly in container)
+  const container = document.getElementById('available-components');
+  const hasDirectComponents = container.querySelector(':scope > .sidebar-component');
+  if (hasDirectComponents) {
+    sidebarSortables.push(new Sortable(container, {
+      group: { name: 'shared', pull: 'clone', put: false },
+      sort: false,
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      draggable: '.sidebar-component',
+      onEnd: () => {}
+    }));
+  }
 }
 
 function addComponentToTemplate(componentId) {
