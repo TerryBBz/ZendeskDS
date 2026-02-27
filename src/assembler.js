@@ -10,6 +10,7 @@ let sidebarSortables = [];
 let dropZoneSortable = null;
 let componentsCache = [];
 const collapsedSidebarFolders = new Set();
+let sidebarFoldersInitialized = false;
 
 function generateInstanceId() {
   return 'inst-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
@@ -57,6 +58,15 @@ async function renderSidebar(filter = '') {
     } else {
       noFolder.push(comp);
     }
+  }
+
+  // Collapse all folders by default on first render
+  if (!sidebarFoldersInitialized) {
+    for (const key of Object.keys(folders)) {
+      collapsedSidebarFolders.add(key);
+    }
+    if (noFolder.length > 0) collapsedSidebarFolders.add('__none__');
+    sidebarFoldersInitialized = true;
   }
 
   // Render each folder
