@@ -391,14 +391,14 @@ input[type="text"]:focus, select:focus {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
   min-height: 0;
 }
 .code-side {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
   min-height: 0;
   border-top: 1px solid var(--border);
 }
