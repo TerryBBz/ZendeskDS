@@ -437,7 +437,7 @@ function openFullscreenPreview() {
   const zdCSS = getZendeskCSS();
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
-  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:16px;font-family:sans-serif;}${zdCSS}</style></head><body>${html}</body></html>`);
+  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:16px;font-family:sans-serif;}${zdCSS}</style></head><body class="zd-context">${html}</body></html>`);
   doc.close();
 }
 
