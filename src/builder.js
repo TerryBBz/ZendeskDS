@@ -733,5 +733,5 @@ export async function initBuilder() {
   window.addEventListener('storage-changed', () => renderComponentList());
 
   // Toujours activer le style Zendesk sur le preview builder
-  enableZendeskPreview(document.getElementById('component-preview'));
+  await enableZendeskPreview(document.getElementById('component-preview'));
 }

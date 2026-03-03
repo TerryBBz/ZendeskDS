@@ -523,5 +523,5 @@ export async function initAssembler() {
   window.addEventListener('storage-changed', () => renderSidebar());
 
   // Toujours activer le style Zendesk sur le preview assembler
-  enableZendeskPreview(document.getElementById('template-preview'));
+  await enableZendeskPreview(document.getElementById('template-preview'));
 }
