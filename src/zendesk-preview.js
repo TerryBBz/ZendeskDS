@@ -17,8 +17,18 @@ async function loadCSS() {
   loadingPromise = fetch('/zendesk-style.css')
     .then(res => res.text())
     .then(raw => {
-      const noComments = raw.replace(/\/\*[\s\S]*?\*\//g, '');
-      scopedCSS = scopeCSS(noComments, SCOPE);
+      let css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+      // Remove @font-face blocks (fonts are hosted on Zendesk, can't load locally)
+      css = css.replace(/@font-face\s*\{[^}]*\}/gs, '');
+      // Replace Zendesk template $variables with sensible defaults
+      css = css.replace(/\$background_color/g, '#ffffff');
+      css = css.replace(/\$text_color/g, '#333333');
+      css = css.replace(/\$brand_color/g, '#0984e3');
+      // Fix invalid "value; !important;" → "value !important;"
+      css = css.replace(/;\s*!important\s*;/g, ' !important;');
+      // Join broken lines: lines not ending with { } ; are continuations
+      css = css.replace(/([^{};,\s])\s*\n\s*/g, '$1 ');
+      scopedCSS = scopeCSS(css, SCOPE);
       return scopedCSS;
     });
   return loadingPromise;
