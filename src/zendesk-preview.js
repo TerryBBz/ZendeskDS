@@ -142,3 +142,10 @@ export function disableZendeskPreview(previewEl) {
 export function isZendeskPreviewEnabled() {
   return localStorage.getItem(STORAGE_KEY) === 'true';
 }
+
+/**
+ * Retourne le CSS Zendesk scopé (déjà chargé), ou '' si pas encore prêt.
+ */
+export function getZendeskCSS() {
+  return scopedCSS || '';
+}

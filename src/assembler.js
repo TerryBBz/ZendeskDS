@@ -5,7 +5,7 @@ import {
 } from './storage.js';
 import { categoryBadge, getFolders } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
-import { enableZendeskPreview } from './zendesk-preview.js';
+import { enableZendeskPreview, getZendeskCSS } from './zendesk-preview.js';
 
 let templateBlocks = []; // { componentId, instanceId, customHtml? }
 let sidebarSortables = [];
@@ -434,9 +434,10 @@ function openFullscreenPreview() {
   const modal = document.getElementById('preview-modal');
   const iframe = document.getElementById('preview-iframe');
   modal.classList.remove('hidden');
+  const zdCSS = getZendeskCSS();
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
-  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:16px;font-family:sans-serif;}</style></head><body>${html}</body></html>`);
+  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:16px;font-family:sans-serif;}${zdCSS}</style></head><body>${html}</body></html>`);
   doc.close();
 }
 
