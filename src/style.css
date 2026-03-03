@@ -1006,3 +1006,19 @@ input[type="text"]:focus, select:focus {
   outline: 2px dashed var(--primary) !important;
   outline-offset: 2px;
 }
+
+/* Zendesk preview toggle */
+.preview-side-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.preview-side-header h3 {
+  margin: 0;
+}
+.zd-toggle-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
