@@ -1,3 +1,9 @@
+:root {
+  --mint: #90C4CE;
+  --deep: #294B53;
+  --sun: #E6B83F;
+}
+
 .embed-container {
     position: relative;
     padding-bottom: 56.25%;
