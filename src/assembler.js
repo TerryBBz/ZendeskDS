@@ -5,6 +5,7 @@ import {
 } from './storage.js';
 import { categoryBadge, getFolders } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
+import { enableZendeskPreview, disableZendeskPreview, isZendeskPreviewEnabled } from './zendesk-preview.js';
 
 let templateBlocks = []; // { componentId, instanceId, customHtml? }
 let sidebarSortables = [];
@@ -520,4 +521,26 @@ export async function initAssembler() {
 
   // Refresh sidebar when storage source changes
   window.addEventListener('storage-changed', () => renderSidebar());
+
+  // Toggle Vue Zendesk — assembler
+  const zdToggleAsmBtn = document.getElementById('zd-toggle-assembler');
+  const assemblerPreview = document.getElementById('template-preview');
+  let zdAsmEnabled = isZendeskPreviewEnabled();
+
+  function applyZdAssembler() {
+    if (zdAsmEnabled) {
+      enableZendeskPreview(assemblerPreview);
+      zdToggleAsmBtn.classList.add('active');
+    } else {
+      disableZendeskPreview(assemblerPreview);
+      zdToggleAsmBtn.classList.remove('active');
+    }
+  }
+
+  applyZdAssembler();
+
+  zdToggleAsmBtn.addEventListener('click', () => {
+    zdAsmEnabled = !zdAsmEnabled;
+    applyZdAssembler();
+  });
 }
