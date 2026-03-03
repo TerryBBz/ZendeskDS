@@ -5,16 +5,19 @@ const STYLE_ID = 'zd-scoped-style';
 const STORAGE_KEY = 'zd-preview-mode';
 
 let scopedCSS = null;
+let loadingPromise = null;
 
 /**
  * Charge et scope le CSS Zendesk (une seule fois, mis en cache).
+ * Les appels concurrents partagent la même promesse pour éviter la double injection.
  */
 async function loadCSS() {
   if (scopedCSS !== null) return scopedCSS;
-  const res = await fetch('/zendesk-style.css');
-  const raw = await res.text();
-  scopedCSS = scopeCSS(raw, SCOPE);
-  return scopedCSS;
+  if (loadingPromise) return loadingPromise;
+  loadingPromise = fetch('/zendesk-style.css')
+    .then(res => res.text())
+    .then(raw => { scopedCSS = scopeCSS(raw, SCOPE); return scopedCSS; });
+  return loadingPromise;
 }
 
 /**
