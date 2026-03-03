@@ -11,7 +11,7 @@ import {
 } from './storage.js';
 import { categoryBadge, getFolders, addFolder, renameFolder, deleteFolder, defaultFolders, loadFolders } from './categories.js';
 import { initStyleToolbar } from './style-toolbar.js';
-import { enableZendeskPreview, disableZendeskPreview, isZendeskPreviewEnabled } from './zendesk-preview.js';
+import { enableZendeskPreview } from './zendesk-preview.js';
 
 let editorView = null;
 let currentComponentId = null;
@@ -732,25 +732,6 @@ export async function initBuilder() {
   // Refresh data when storage source changes (e.g. folder connected)
   window.addEventListener('storage-changed', () => renderComponentList());
 
-  // Toggle Vue Zendesk — builder
-  const zdToggleBtn = document.getElementById('zd-toggle-builder');
-  const builderPreview = document.getElementById('component-preview');
-  let zdBuilderEnabled = isZendeskPreviewEnabled();
-
-  function applyZdBuilder() {
-    if (zdBuilderEnabled) {
-      enableZendeskPreview(builderPreview);
-      zdToggleBtn.classList.add('active');
-    } else {
-      disableZendeskPreview(builderPreview);
-      zdToggleBtn.classList.remove('active');
-    }
-  }
-
-  applyZdBuilder();
-
-  zdToggleBtn.addEventListener('click', () => {
-    zdBuilderEnabled = !zdBuilderEnabled;
-    applyZdBuilder();
-  });
+  // Toujours activer le style Zendesk sur le preview builder
+  enableZendeskPreview(document.getElementById('component-preview'));
 }
