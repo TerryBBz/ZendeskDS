@@ -16,7 +16,11 @@ async function loadCSS() {
   if (loadingPromise) return loadingPromise;
   loadingPromise = fetch('/zendesk-style.css')
     .then(res => res.text())
-    .then(raw => { scopedCSS = scopeCSS(raw, SCOPE); return scopedCSS; });
+    .then(raw => {
+      const noComments = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+      scopedCSS = scopeCSS(noComments, SCOPE);
+      return scopedCSS;
+    });
   return loadingPromise;
 }
 
