@@ -311,6 +311,14 @@ input[type="text"]:focus, select:focus {
 }
 .hidden { display: none !important; }
 
+#editor-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
 .editor-header {
   display: flex;
   gap: 8px;
